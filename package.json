@@ -1,0 +1,14 @@
+{
+  "name": "appfe",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/main/resources/static/dist/app.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --declaration --project ./src/main/ts/wux/tsconfig.json && tsc --noEmitHelpers --declaration --project ./src/main/ts/app/tsconfig.json && echo build completed.",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

@@ -1,0 +1,108 @@
+# Numero minimo di repliche
+replicaCount: 1
+
+# Immagine da utilizzare, i valori repository e tag sono popolati durante le pipeline
+image:
+  repository: appbe
+  pullPolicy: IfNotPresent
+  tag: latest
+
+# Secrets per il pull
+imagePullSecrets:
+- name: regcred
+
+nameOverride:
+# Valore gestito automaticamente dalla ci/cd con ${CI_PROJECT_NAME}
+fullnameOverride:
+
+# Annotazioni custom da mettere nel pod, di seguito quelle gestite dalla ci/cd
+# --set podAnnotations.gitlab=deployed-by-${CI_PIPELINE_ID}
+# --set podAnnotations.app=${CI_PROJECT_ROOT_NAMESPACE}
+# --set podAnnotations.module=${CI_PROJECT_NAME}
+podAnnotations: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+#   annotations: {}
+  hosts:
+   - host: wdemo.dew.org
+     paths:
+       - /
+#   annotations: {}
+#   hosts:
+#     - host: www.example.com
+#       paths:
+#         - /
+#   tls:
+#    - secretName: the-secret
+#      hosts:
+#        - www.example.com
+
+ports:
+ - name: http
+   containerPort: 8080
+   protocol: TCP
+
+livenessProbe: {}
+  # httpGet:
+  #   port: http
+  #   path: /
+  # timeoutSeconds: 5
+  # periodSeconds: 30
+  # successThreshold: 1
+  # failureThreshold: 5
+
+readinessProbe: {}
+  # httpGet:
+  #   port: http
+  #   path: /
+  # timeoutSeconds: 5
+  # periodSeconds: 30
+  # successThreshold: 1
+  # failureThreshold: 5
+
+resources: {}
+  # limits:
+  #   cpu: 1000m
+  #   memory: 2048Mi
+  # requests:
+  #   cpu: 1000m
+  #   memory: 2048Mi
+
+# Configurazione HPA se necessario
+autoscaling:
+  enabled: false
+  # minReplicas: 1
+  # maxReplicas: 2
+  # targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Secret  esportata sull'environment.
+# I valori devono essere inseriti in base64
+envSecrets:
+  APP_DS_PASS: cGFzc3cwcmQ=
+
+# Configmap esportata sull'environment.
+envConfigMap:
+  APP_DS_DRIVER: "org.postgresql.Driver"
+  APP_DS_URL: "jdbc:postgresql://appdb-default-deploy:5432/appdb"
+  APP_DS_USER: "appdb"
+
+# Configmap montata come volume
+volConfigMap:
+  enabled: false
+
+# Persistenza se necessaria
+persistenceVolume:
+  enabled: false
+

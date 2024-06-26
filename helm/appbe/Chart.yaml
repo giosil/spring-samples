@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: 1.16.0
+description: Default kubernetes deployment
+name: default-deploy
+type: application
+version: 0.1.9

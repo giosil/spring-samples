@@ -1,0 +1,378 @@
+﻿namespace WUX {
+
+	/** Shared data */
+	let _data: { [key: string]: any } = {};
+	/** DataChanged callbacks */
+	let _dccb: { [key: string]: ((e?: any) => any)[] } = {};
+
+	export let global: WGlobal = {
+		locale: 'it',
+
+		init: function _init(callback: () => any) {
+			if (WUX.debug) console.log('[WUX] global.init...');
+			// Initialization code
+			if (WUX.debug) console.log('[WUX] global.init completed');
+			if (callback) callback();
+		},
+
+		setData(key: string, data: any, dontTrigger: boolean = false): void {
+			if (!key) key = 'global';
+			_data[key] = data;
+			if (dontTrigger) return;
+			if (!_dccb[key]) return;
+			for (let cb of _dccb[key]) cb(data);
+		},
+
+		getData(key: string, def?: any): any {
+			if (!key) key = 'global';
+			let r = _data[key];
+			if (r == null) return def;
+			return r;
+		},
+
+		onDataChanged(key: string, callback: (data: any) => any) {
+			if (!key) key = 'global';
+			if (!_dccb[key]) _dccb[key] = [];
+			_dccb[key].push(callback);
+		}
+	}
+	
+	export class CSS {
+		static FORM = 'padding-top:16px;';
+		static FORM_GROUP = 'form-group';
+		static FORM_CTRL = 'form-control';
+		static FORM_CHECK = 'form-check form-check-inline';
+		static CHECK_STYLE = 'padding-top:1.5rem;';
+		static ICON = 'margin-right:8px;';
+		static SEL_ROW = 'primary-bg-a2';
+
+		static PRIMARY: WStyle = { bg: '#b8d4f1' };
+		static SECONDARY: WStyle = { bg: '#d1d7dc' };
+		static SUCCESS: WStyle = { bg: '#b8ddd0' };
+		static DANGER: WStyle = { bg: '#f4c7ce' };
+		static WARNING: WStyle = { bg: '#e6d3b8' };
+		static INFO: WStyle = { bg: '#e2e2e2' };
+		static LIGHT: WStyle = { bg: '#f9f8fb' };
+	}
+	
+	export class RES {
+		static OK = 'OK';
+		static CLOSE = 'Chiudi';
+		static CANCEL = 'Annulla';
+	}	
+	
+	// Data format utilities
+
+	export function formatDate(a: any, withDay: boolean = false, e: boolean = false): string {
+		if (!a) return '';
+		let d = WUtil.toDate(a);
+		if (!d) return '';
+		let m = d.getMonth() + 1;
+		let sm = m < 10 ? '0' + m : '' + m;
+		let sd = d.getDate() < 10 ? '0' + d.getDate() : '' + d.getDate();
+		if (withDay) {
+			return WUX.formatDay(d.getDay(), e) + ', ' + sd + '/' + sm + '/' + d.getFullYear();
+		}
+		return sd + '/' + sm + '/' + d.getFullYear();
+	}
+
+	export function isoDate(a: any): string {
+		if (!a) return '';
+		let d = WUtil.toDate(a);
+		if (!d) return '';
+		let m = d.getMonth() + 1;
+		let sm = m < 10 ? '0' + m : '' + m;
+		let sd = d.getDate() < 10 ? '0' + d.getDate() : '' + d.getDate();
+		return d.getFullYear() + '-' + sm + '-' + sd;
+	}
+
+	export function formatDateTime(a: any, withSec: boolean = false, withDay: boolean = false, e: boolean = false): string {
+		if (!a) return '';
+		let d = WUtil.toDate(a);
+		if (!d) return '';
+		let m = d.getMonth() + 1;
+		let sm = m < 10 ? '0' + m : '' + m;
+		let sd = d.getDate() < 10 ? '0' + d.getDate() : '' + d.getDate();
+		let sh = d.getHours() < 10 ? '0' + d.getHours() : '' + d.getHours();
+		let sp = d.getMinutes() < 10 ? '0' + d.getMinutes() : '' + d.getMinutes();
+		if (withSec) {
+			let ss = d.getSeconds() < 10 ? '0' + d.getSeconds() : '' + d.getSeconds();
+			if (withDay) {
+				return WUX.formatDay(d.getDay(), e) + ', ' + sd + '/' + sm + '/' + d.getFullYear() + ' ' + sh + ':' + sp + ':' + ss;
+			}
+			return sd + '/' + sm + '/' + d.getFullYear() + ' ' + sh + ':' + sp + ':' + ss;
+		}
+		if (withDay) {
+			return WUX.formatDay(d.getDay(), e) + ', ' + sd + '/' + sm + '/' + d.getFullYear() + ' ' + sh + ':' + sp;
+		}
+		return sd + '/' + sm + '/' + d.getFullYear() + ' ' + sh + ':' + sp;
+	}
+
+	export function formatTime(a: any, withSec: boolean = false): string {
+		if (a == null) return '';
+		if (typeof a == 'number') {
+			if (withSec) {
+				if(a < 10000) a = a * 100;
+				let hh = Math.floor(a / 10000);
+				let mm = Math.floor((a % 10000) / 100);
+				let is = (a % 10000) % 100;
+				let sm = mm < 10 ? '0' + mm : '' + mm;
+				let ss = is < 10 ? '0' + is : '' + is;
+				return hh + ':' + sm + ':' + ss;
+			}
+			else {
+				if(a > 9999) a = Math.floor(a / 100);
+				let hh = Math.floor(a / 100);
+				let mm = a % 100;
+				let sm = mm < 10 ? '0' + mm : '' + mm;
+				return hh + ':' + sm;
+			}
+		}
+		if (typeof a == 'string') {
+			let s = a.indexOf('T');
+			if(s < 0) s = a.indexOf(' ');
+			if(s >= 0) a = a.substring(s + 1);
+			s = a.indexOf('+');
+			if(s < 0) s = a.indexOf('-');
+			if(s < 0) s = a.indexOf('Z');
+			if(s >= 0) a = a.substring(0, s);
+			let n = parseInt(a.replace(':', '').replace('.', ''));
+			return formatTime(n);
+		}
+		if (a instanceof Date) {
+			let sh = a.getHours() < 10 ? '0' + a.getHours() : '' + a.getHours();
+			let sp = a.getMinutes() < 10 ? '0' + a.getMinutes() : '' + a.getMinutes();
+			if (withSec) {
+				let ss = a.getSeconds() < 10 ? '0' + a.getSeconds() : '' + a.getSeconds();
+				return sh + ':' + sp + ':' + ss;
+			}
+			return sh + ':' + sp;
+		}
+		return '';
+	}
+
+	/**
+	 * Formatta numero alla 2a cifra decimale SENZA separatore migliaia.
+	 */
+	export function formatNum2(a: any, nz?: string, z?: string, neg?: string): string {
+		if (a === '' || a == null) return '';
+		let n = WUtil.toNumber(a);
+		let r = ('' + (Math.round(n * 100) / 100)).replace('.', ',');
+		if (nz != null && n != 0) {
+			if (neg != null && n < 0) return neg.replace('$', r);
+			return nz.replace('$', r);
+		}
+		if (z != null && n == 0) return z.replace('$', r);
+		return r;
+	}
+
+	/**
+	 * Formatta numero di default SENZA separatore migliaia. Specificare 'l' per la rappresentazione locale.
+	 */
+	export function formatNum(a: any, nz?: string, z?: string, neg?: string): string {
+		if (a === '' || a == null) return '';
+		let n = WUtil.toNumber(a);
+		let r = ('' + n).replace('.', ',');
+		if (nz != null && n != 0) {
+			if (neg != null && n < 0) {
+				if (neg == 'l') return n.toLocaleString('it-IT');
+				return neg.replace('$', r);
+			}
+			if (nz == 'l') return n.toLocaleString('it-IT');
+			return nz.replace('$', r);
+		}
+		if (z != null && n == 0) return z.replace('$', r);
+		return r;
+	}
+
+	/**
+	 * Formatta numero alla 2a cifra decimale CON separatore migliaia e riportando SEMPRE le cifre decimali.
+	 */
+	export function formatCurr(a: any, nz?: string, z?: string, neg?: string): string {
+		if (a === '' || a == null) return '';
+		let n = WUtil.toNumber(a);
+		let r = (Math.round(n * 100) / 100).toLocaleString('it-IT');
+		let d = r.indexOf(',');
+		if (d < 0) r += ',00';
+		if (d == r.length - 2) r += '0';
+		if (nz != null && n != 0) {
+			if (neg != null && n < 0) return neg.replace('$', r);
+			return nz.replace('$', r);
+		}
+		if (z != null && n == 0) return z.replace('$', r);
+		return r;
+	}
+
+	/**
+	 * Formatta numero alla 5a cifra decimale CON separatore migliaia e riportando SEMPRE le cifre decimali (massimo 2).
+	 */
+	export function formatCurr5(a: any, nz?: string, z?: string, neg?: string): string {
+		if (a === '' || a == null) return '';
+		let n = WUtil.toNumber(a);
+		let r = ('' + (Math.round(n * 100000) / 100000)).replace('.', ',');
+		let d = r.indexOf(',');
+		if (d < 0) r += ',00';
+		if (d == r.length - 2) r += '0';
+		if (d > 0) {
+			let s1 = r.substring(0, d);
+			let s2 = r.substring(d);
+			let s3 = '';
+			for (let i = 1; i <= s1.length; i++) {
+				if (i > 3 && (i - 1) % 3 == 0) s3 = '.' + s3;
+				s3 = s1.charAt(s1.length - i) + s3;
+			}
+			r = s3 + s2;
+		}
+		if (nz != null && n != 0) {
+			if (neg != null && n < 0) return neg.replace('$', r);
+			return nz.replace('$', r);
+		}
+		if (z != null && n == 0) return z.replace('$', r);
+		return r;
+	}
+
+	export function formatBoolean(a: any): string {
+		if (a == null) return '';
+		return a ? 'S' : 'N';
+	}
+
+	export function format(a: any): string {
+		if (a == null) return '';
+		if (typeof a == 'string') return a;
+		if (typeof a == 'boolean') return WUX.formatBoolean(a);
+		if (typeof a == 'number') {
+			let r = ('' + a);
+			if (r.indexOf('.') >= 0) return WUX.formatCurr(a);
+			return WUX.formatNum(a);
+		}
+		if (a instanceof Date) return WUX.formatDate(a);
+		if (a instanceof WUX.WComponent) {
+			return WUX.format(a.getState());
+		}
+		return '' + a;
+	}
+
+	export function formatDay(d: number, e?: boolean): string {
+		switch (d) {
+			case 0: return e ? 'Domenica' : 'Dom';
+			case 1: return e ? 'Luned&igrave;': 'Lun';
+			case 2: return e ? 'Marted&igrave;': 'Mar';
+			case 3: return e ? 'Mercoled&igrave;': 'Mer';
+			case 4: return e ? 'Giove&igrave;': 'Gio';
+			case 5: return e ? 'Venerd&igrave;': 'Ven';
+			case 6: return e ? 'Sabato': 'Sab';
+		}
+		return '';
+	}
+	
+	export function formatMonth(m: number, e?: boolean, y?: any): string {
+		if (m > 100) {
+			// YYYYMM
+			y = Math.floor(m / 100);
+			m = m % 100;
+		}
+		y = y ? ' ' + y : '';
+		switch (m) {
+			case 1: return e ? 'Gennaio' + y : 'Gen' + y;
+			case 2: return e ? 'Febbraio' + y : 'Feb' + y;
+			case 3: return e ? 'Marzo' + y : 'Mar' + y;
+			case 4: return e ? 'Aprile' + y : 'Apr' + y;
+			case 5: return e ? 'Maggio' + y : 'Mag' + y;
+			case 6: return e ? 'Giugno' + y : 'Giu' + y;
+			case 7: return e ? 'Luglio' + y : 'Lug' + y;
+			case 8: return e ? 'Agosto' + y : 'Ago' + y;
+			case 9: return e ? 'Settembre' + y : 'Set' + y;
+			case 10: return e ? 'Ottobre' + y : 'Ott' + y;
+			case 11: return e ? 'Novembre' + y : 'Nov' + y;
+			case 12: return e ? 'Dicembre' + y : 'Dic' + y;
+		}
+		return '';
+	}
+	
+	export function saveFile(base64: string, fileName: string, mimeType: string = 'application/octet-stream') {
+		const ab = atob(base64);
+		const an = new Array(ab.length);
+		for (let i = 0; i < ab.length; i++) {
+			an[i] = ab.charCodeAt(i);
+		}
+		const ui8a = new Uint8Array(an);
+		const blob = new Blob([ui8a], {type: mimeType});
+		const link = document.createElement('a');
+		link.href = URL.createObjectURL(blob);
+		link.download = fileName;
+		link.click();
+	}
+	
+	export function viewFile(base64: string, fileName: string, mimeType: string = 'application/octet-stream') {
+		const ab = atob(base64);
+		const an = new Array(ab.length);
+		for (let i = 0; i < ab.length; i++) {
+			an[i] = ab.charCodeAt(i);
+		}
+		const ui8a = new Uint8Array(an);
+		const blob = new Blob([ui8a], {type: mimeType});
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.target = '_blank';
+		link.rel = 'noopener noreferrer';
+		link.title = fileName;
+		link.click();
+		setTimeout(() => { URL.revokeObjectURL(url); }, 1000);
+	}
+	
+	export function getAction(ie: string | Event, c?: WUX.WComponent, tag?: string): WAction {
+		if(!ie) return null;
+		if(typeof ie == 'string') {
+			let s = WUX.lastSub(ie);
+			if(!s) return null;
+			let x = s.indexOf('_');
+			if(x <= 0) return null;
+			let n = s.substring(0, x);
+			let r = s.substring(x + 1).replace(/\$/g, '-');
+			if(tag) tag = tag.toLowerCase();
+			return {name: n, ref: r, idx: WUtil.toNumber(r, -1),tag: tag, comp: c};
+		}
+		else {
+			let t = ie.target as Element;
+			if(!t) return null;
+			let n = t.tagName;
+			if(!n) return null;
+			if(tag && tag.toLowerCase() != n.toLowerCase()) return null;
+			let i = WUX.getId(t);
+			if(i) {
+				let a = getAction(i, c, n);
+				if(a) return a;
+			}
+			let p = t["parentElement"] as Element;
+			if(p) {
+				n = p.tagName;
+				if(!n) return null;
+				if(tag && tag.toLowerCase() != n.toLowerCase()) return null;
+			}
+			i = WUX.getId(p);
+			return getAction(i, c, n);
+		}
+	}
+	
+	export function action(name: string, ref?: string | number, ele?: string, comp?: WUX.WComponent, inner?: string, cls?: string) : string {
+		if(typeof ref == 'string') ref = ref.replace(/\-/g, '$');
+		if(!ele) ele = 'a';
+		let id = comp ? comp.subId(name + '_' + ref) : name + '_' + ref;
+		if(ele.indexOf('-') > 0) {
+			// icon
+			return '<i id="' + id + '" class="fa ' + ele + '" style="cursor:pointer;width:100%;"></i>';
+		}
+		else {
+			// tag
+			if(!inner) inner = '';
+			if(cls) {
+				if(cls.indexOf(':') > 0) {
+					return '<' + ele + ' id="' + id + '" style="' + cls + '">' + inner + '</' + ele + '>';
+				}
+				return '<' + ele + ' id="' + id + '" class="' + cls + '">' + inner + '</' + ele + '>';
+			}
+			return '<' + ele + ' id="' + id + '" style="cursor:pointer;">' + inner + '</' + ele + '>';
+		}
+	}
+}

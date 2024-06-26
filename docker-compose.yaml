@@ -1,0 +1,21 @@
+services:
+  erpbbe:
+    image: appbe
+    container_name: appbe-services
+    environment:
+      - APP_DS_DRIVER=org.postgresql.Driver
+      - APP_DS_URL=jdbc:postgresql://postgres:5432/appdb
+      - APP_DS_USER=appdb
+      - APP_DS_PASS=passw0rd
+    depends_on:
+      - "postgres"
+    ports:
+      - "8080:8080"
+  postgres:
+    image: appdb
+    container_name: appdb-postgres
+    ports:
+      - "5432:5432"
+
+volumes:
+  appvol:

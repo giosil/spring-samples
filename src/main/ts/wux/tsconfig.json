@@ -1,0 +1,11 @@
+{
+	"compilerOptions": {
+		"module": "none",
+		"target": "es5",
+		"outFile": "../../resources/static/dist/wux.js"
+	},
+	"include": [
+		"../types/**/*",
+		"*"
+	]
+}

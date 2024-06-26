@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: appbe-configmap
+data:
+  APP_DS_DRIVER: "org.postgresql.Driver"
+  APP_DS_URL: "jdbc:postgresql://appdb-service:5432/appdb"
+  APP_DS_USER: "appdb"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: appbe-secret
+type: Opaque
+data:
+  APP_DS_PASS: cGFzc3cwcmQ=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appbe-deployment
+  labels:
+    app: appbe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: appbe
+  template:
+    metadata:
+      labels:
+        app: appbe
+    spec:
+      containers:
+        - name: main
+          image: appbe
+          imagePullPolicy: Never
+          envFrom:
+            - secretRef:
+                name: appbe-secret
+            - configMapRef:
+                name: appbe-configmap
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appbe-service
+spec:
+  type: NodePort
+  selector:
+    app: appbe
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: appbe-ingress
+#  annotations:
+#    kubernetes.io/ingress.class: nginx
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: wdemo.dew.org
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: appbe-service
+                port:
+                  number: 8080
+---
