@@ -3,6 +3,7 @@ declare namespace APP {
     function showSuccess(m: string, title?: string): void;
     function showWarning(m: string, title?: string): void;
     function showError(m: string, title?: string): void;
+    function dropdownBtn(id: string, t: string, items: string, cls?: string): string;
 }
 declare namespace APP {
     class HttpClient {
@@ -32,6 +33,31 @@ declare namespace APP {
         constructor(id?: string, classStyle?: string, style?: string | WUX.WStyle, attributes?: string | object);
         add(link: string): this;
         render(): string;
+    }
+    class ResPages extends WUX.WComponent<number, number> {
+        max: number;
+        constructor(id?: string, classStyle?: string, style?: string | WUX.WStyle, attributes?: string | object);
+        refresh(rows: number, lim: number, tot: number, curr: number): this;
+        clear(): this;
+        protected updateState(nextState: number): void;
+        protected componentDidMount(): void;
+        getBtnPrev(): string;
+        getBtnNext(): string;
+        getPageItem(i: number, a?: boolean, t?: string): string;
+    }
+    class BtnPages extends WUX.WComponent<number, number> {
+        constructor(id?: string);
+        refresh(page: number, pages: number): void;
+        protected updateState(n: number): void;
+        render(): string;
+        protected componentDidMount(): void;
+    }
+    class BtnItems extends WUX.WComponent<number, number> {
+        IPP: number[];
+        constructor(id?: string);
+        render(): string;
+        protected updateState(n: number): void;
+        protected componentDidMount(): void;
     }
 }
 declare namespace APP {
