@@ -1,0 +1,56 @@
+include:
+#  - project: devops
+#    ref: master
+#    file: build-containers.yaml
+#  - project: devops
+#    ref: master
+#    file: deploy-helm.yaml
+  - local: build-containers.yaml
+  - local: deploy-helm.yaml
+
+variables:
+  SONAR_TOKEN: 0000000000000000000000000000000000000000
+  SONAR_HOST_URL: https://sonarqube.dew.org
+
+stages:
+  - build
+  - deploy
+
+sonarqube-check:
+  stage: build
+  image: maven:3-eclipse-temurin-19
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script: 
+    - |
+      mvn verify sonar:sonar \
+      --settings src/maven_settings.xml \
+      -Dsonar.projectKey="${CI_PROJECT_ROOT_NAMESPACE}_${CI_PROJECT_NAME}" \
+      -Dsonar.projectName="${CI_PROJECT_ROOT_NAMESPACE} .:. ${CI_PROJECT_NAME}" \
+      -f src/pom.xml
+  allow_failure: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - src/**/*
+        - .gitlab-ci.yml
+
+build_containers:
+  stage: build
+  variables:
+    DOCKER_REGISTRY: dewregistry
+  before_script:
+    - cp -r src containers/src
+
+deploy_helm:
+  stage: deploy
+  variables:
+    DOCKER_REGISTRY: dewregistry
+    HELM_REPO: dewhelm
+    HELM_REPO_URL: https://nexus.dew.org/repository/helm-charts
+    HELM_CHART: dewhelm/default-deploy

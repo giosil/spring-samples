@@ -1,0 +1,95 @@
+deploy_helm:
+  image: dockerhub.dew.org/gitlab/tda-docker:v1.0.3
+  variables: 
+    DEPLOY_ENV: dew
+    DOCKER_REGISTRY: ""
+    HELM_REPO: ""
+    HELM_REPO_URL: ""
+    HELM_CHART: ""
+    HELM_ROOT: "helm"
+  stage: deploy
+  cache:
+    key: "$CI_PIPELINE_ID"
+    paths:
+    - cache/
+  script:
+    - |
+      export CI_PROJECT_NAME=`echo $CI_PROJECT_NAME | sed 's/_/-/g'`
+    - |
+      IMAGE_TAG='latest'
+      if [[ "$CI_COMMIT_BRANCH" == "prod" ]] || [[ "$CI_COMMIT_BRANCH" == "test" ]]
+      then
+        if [[ -f .version ]]
+        then
+          IMAGE_TAG=`head -n 1 .version`
+          echo "Detected standard project, version is ${IMAGE_TAG}"
+        elif [[ -f src/pom.xml ]]
+        then
+          IMAGE_TAG=`mvn -f src/pom.xml --settings src/maven_settings.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout`
+          echo "Detected java project version ${IMAGE_TAG}"
+        elif [[ -f src/package.json ]]
+        then
+          IMAGE_TAG=`cat src/package.json| jq -r '.version'`
+          echo "Detected node project, version is ${IMAGE_TAG}"
+        else
+          echo "Unknown project detected"
+        fi        
+      fi
+    - |
+      if [ "${CI_COMMIT_BRANCH}" == "prod" ] ; then
+        K8S_NAMESPACE=${CI_PROJECT_ROOT_NAMESPACE}-prod
+      elif [ "${CI_COMMIT_BRANCH}" == "pre-prod" ] ; then
+        K8S_NAMESPACE=${CI_PROJECT_ROOT_NAMESPACE}-pre-prod
+      elif [ "${CI_COMMIT_BRANCH}" == "test" ] ; then
+        K8S_NAMESPACE=${CI_PROJECT_ROOT_NAMESPACE}-coll
+      else
+        K8S_NAMESPACE=${CI_PROJECT_ROOT_NAMESPACE}-dev
+      fi
+    - |
+      if [[ "${DOCKER_REGISTRY}" == "" ]] 
+      then
+        DOCKER_REGISTRY=${DEPLOY_ENV}
+      fi
+    - export VAULT_TOKEN="$(vault write -field=token auth/jwt/login role=tda jwt=$CI_JOB_JWT)"
+    - VAULT_REGISTRY=`vault kv get -field=registry kv/tda/docker-registry/${DOCKER_REGISTRY}`
+    - mkdir -p ~/.kube
+    - vault kv get -field=kubeconfig kv/tda/kubernetes/gitlab-deployer/${CI_COMMIT_BRANCH}-${DEPLOY_ENV} > ~/.kube/config
+    - chmod 600 ~/.kube/config
+    - |
+      if [[ "${HELM_REPO}${HELM_REPO_URL}${HELM_CHART}" == "" ]]
+      then
+        HELM_CHART=${HELM_ROOT}
+      else
+        helm repo add ${HELM_REPO} ${HELM_REPO_URL}
+      fi
+    - |
+      EXTENDED_FILES=""
+      [ -f ${HELM_ROOT}/values/${CI_COMMIT_BRANCH}-${DEPLOY_ENV}.yaml ] && EXTENDED_FILES="${EXTENDED_FILES} -f ${HELM_ROOT}/values/${CI_COMMIT_BRANCH}-${DEPLOY_ENV}.yaml"
+    - helm upgrade -i -n ${K8S_NAMESPACE} --create-namespace ${CI_PROJECT_NAME} ${HELM_CHART} 
+      -f ${HELM_ROOT}/values.yaml 
+      -f ${HELM_ROOT}/values/${CI_COMMIT_BRANCH}.yaml
+      $EXTENDED_FILES
+      --set image.repository=${VAULT_REGISTRY}/${CI_PROJECT_ROOT_NAMESPACE}/${CI_PROJECT_NAME}
+      --set image.tag=${IMAGE_TAG}
+      --set podAnnotations.gitlab=deployed-by-${CI_PIPELINE_ID}-${CI_JOB_ID}
+      --set podAnnotations.app=${CI_PROJECT_ROOT_NAMESPACE}
+      --set podAnnotations.module=${CI_PROJECT_NAME}
+      --set fullnameOverride=${CI_PROJECT_NAME}
+    - rm -f ~/.kube/config
+  allow_failure: false
+  rules:
+    - if: '($CI_COMMIT_BRANCH == "prod" || $CI_COMMIT_BRANCH == "pre-prod") && $CI_PIPELINE_SOURCE == "push"'
+      when: manual
+      changes:
+        - containers/Dockerfile
+        - src/**/*
+        - helm/**/*
+        - .gitlab-ci.yml
+        - .version
+    - if: '($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "test") && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - containers/Dockerfile
+        - src/**/*
+        - helm/**/*
+        - .gitlab-ci.yml
+        - .version

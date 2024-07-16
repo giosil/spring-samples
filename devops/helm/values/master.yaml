@@ -1,0 +1,6 @@
+# master
+
+envConfigMap:
+  APP_DS_DRIVER: "org.postgresql.Driver"
+  APP_DS_URL: "jdbc:postgresql://appdb-default-deploy:5432/appdb"
+  APP_DS_USER: "appdb"

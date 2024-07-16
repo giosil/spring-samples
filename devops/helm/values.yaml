@@ -1,0 +1,167 @@
+# Numero minimo di repliche
+replicaCount: 1
+
+# Immagine da utilizzare, i valori repository e tag sono popolati durante le pipeline
+image:
+  repository:
+  pullPolicy: Always
+  tag:
+
+# Secrets per il pull
+imagePullSecrets:
+ - name: regcred
+ - name: regcred-vra
+
+nameOverride:
+# Valore gestito automaticamente dalla ci/cd con ${CI_PROJECT_NAME}
+fullnameOverride:
+
+# Annotazioni custom da mettere nel pod, di seguito quelle gestite dalla ci/cd
+# --set podAnnotations.gitlab=deployed-by-${CI_PIPELINE_ID}
+# --set podAnnotations.app=${CI_PROJECT_ROOT_NAMESPACE}
+# --set podAnnotations.module=${CI_PROJECT_NAME}
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+#   annotations: {}
+#   hosts:
+#     - host: www.example.com
+#       paths:
+#         - /
+#   tls:
+#    - secretName: the-secret
+#      hosts:
+#        - www.example.com
+
+# command:
+#   - sh
+
+# commandArgs:
+#   - -p
+#   - 80
+
+ports:
+  - name: http
+    containerPort: 8080
+    protocol: TCP
+
+startupProbe: {}
+
+livenessProbe: {}
+  # httpGet:
+  #   port: http
+  #   path: /
+  # timeoutSeconds: 5
+  # periodSeconds: 30
+  # successThreshold: 1
+  # failureThreshold: 5
+
+readinessProbe: {}
+  # httpGet:
+  #   port: http
+  #   path: /
+  # timeoutSeconds: 5
+  # periodSeconds: 30
+  # successThreshold: 1
+  # failureThreshold: 5
+
+resources: {}
+  # limits:
+  #   cpu: 1000m
+  #   memory: 2048Mi
+  # requests:
+  #   cpu: 1000m
+  #   memory: 2048Mi
+
+# Configurazione HPA se necessario
+autoscaling:
+  enabled: false
+  # minReplicas: 1
+  # maxReplicas: 2
+  # targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# hostAliases:
+#   - ip: "127.0.0.1"
+#     hostnames:
+#     - "foo.local"
+#     - "bar.local"
+#   - ip: "10.1.2.3"
+#     hostnames:
+#     - "foo.remote"
+#     - "bar.remote"
+
+# Secret  esportata sull'environment.
+# I valori devono essere inseriti in base64
+envSecrets: {}
+
+# Configmap esportata sull'environment.
+envConfigMap: {}
+
+# Sezione esplicita di env
+# env:
+# - name: HOST_NAME
+#   valueFrom:
+#     fieldRef:
+#       fieldPath: status.podIP
+
+# Sezione custom da aggiungere all'environment
+# envFrom:
+#   - secretRef:
+#       name: my-external-secret
+#   - configMapRef:
+#       name: my-external-configmap
+
+# Configmap montata come volume
+volConfigMap:
+  enabled: true
+#   volumeMount:
+#   - mountPath: /somewhere/web.xml
+#     subPath: web.xml
+  # data:
+  #   web.xml: |
+  #      file content
+  # binaryData:
+  #   keystore.jks: |
+  #      base64 file content
+
+# Persistenza se necessaria
+persistenceVolume:
+  enabled: false
+#   size: 10G
+#   accessModes:
+#     - ReadWriteOnce
+#   mountPath: /usr/share/dew/data_dir
+#   storageClassName: storage-nfs
+
+existingClaimVolumes: []
+# - claimName: existingClaimName
+#.  name: volumeName
+#   mountPath: /mount/path
+
+# serviceAccount.true or false se deve essere creato un service account
+# serviceAccount.rules contiene le rules per il service account
+serviceAccount:
+  enabled: false
+  rules: []
+
+# eventuali initContainers
+initContainers: []
+
+# statefulset.enabled true o false per abiliare lo statefulset
+statefulset:
+  enabled: false

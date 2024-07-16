@@ -1,0 +1,85 @@
+build_containers:
+  variables: 
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+    DEPLOY_ENV: dew
+    DOCKER_REGISTRY: ""
+    DOCKER_ARGS: ""
+    DOCKER_BUILD_CONTEXT: "containers/"
+    DOCKER_BUILD_FILE: "containers/Dockerfile"
+  image: dockerhub.dew.org/gitlab/tda-docker:v1.0.3
+  stage: build
+  cache:
+    key: "$CI_PIPELINE_ID"
+    paths:
+    - cache/  
+  services:
+    - docker:20.10.17-dind
+  script:
+    - echo Deploy environment is ${DEPLOY_ENV}
+    - |
+      export CI_PROJECT_NAME=`echo $CI_PROJECT_NAME | sed 's/_/-/g'`
+    - |
+      attempts=30
+      echo "---- Waiting $attempts sec for docker to come up ----"
+      while ! docker info > /dev/null 2>&1; do
+          echo "Connection attempts left: $attempts"
+          if [ $attempts -eq 0 ]; then
+              echo "Couldn't connect to docker, no attempts left"
+              return 1
+          fi;
+          let attempts=$attempts-1
+          echo "Connection to docker failed"
+          sleep 1
+      done
+      echo "---- Docker came up ----"
+    - |
+      if [[ "${DOCKER_REGISTRY}" == "" ]] 
+      then
+        DOCKER_REGISTRY=${DEPLOY_ENV}
+      fi
+    - export VAULT_TOKEN="$(vault write -field=token auth/jwt/login role=tda jwt=$CI_JOB_JWT)"
+    - VAULT_PASSWORD=`vault kv get -field=password kv/tda/docker-registry/${DOCKER_REGISTRY}`
+    - VAULT_USER=`vault kv get -field=user kv/tda/docker-registry/${DOCKER_REGISTRY}`
+    - VAULT_REGISTRY=`vault kv get -field=registry kv/tda/docker-registry/${DOCKER_REGISTRY}`
+    - echo Performing authentication to $VAULT_REGISTRY registry with user $VAULT_USER
+    - echo $VAULT_PASSWORD | docker login $VAULT_REGISTRY -u $VAULT_USER --password-stdin
+    - |
+      IMAGE_TAG='latest'
+      if [[ "$CI_COMMIT_BRANCH" == "prod" ]] || [[ "$CI_COMMIT_BRANCH" == "test" ]]
+      then
+        if [[ -f .version ]]
+        then
+          IMAGE_TAG=`head -n 1 .version`
+          echo "Detected standard project, version is ${IMAGE_TAG}"
+        elif [[ -f src/pom.xml ]]
+        then
+          IMAGE_TAG=`mvn -f src/pom.xml --settings src/maven_settings.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout`
+          echo "Detected java project, version is ${IMAGE_TAG}"
+        elif [[ -f src/package.json ]]
+        then
+          IMAGE_TAG=`cat src/package.json| jq -r '.version'`
+          echo "Detected node project, version is ${IMAGE_TAG}"
+        else
+          echo "Unknown project detected"
+        fi        
+      fi
+    - docker build -t $VAULT_REGISTRY/$CI_PROJECT_ROOT_NAMESPACE/$CI_PROJECT_NAME:$IMAGE_TAG $DOCKER_ARGS $DOCKER_BUILD_CONTEXT -f $DOCKER_BUILD_FILE
+    - |
+      if [[ "$IMAGE_TAG" != "latest" ]]
+      then
+        docker tag $VAULT_REGISTRY/$CI_PROJECT_ROOT_NAMESPACE/$CI_PROJECT_NAME:$IMAGE_TAG $VAULT_REGISTRY/$CI_PROJECT_ROOT_NAMESPACE/$CI_PROJECT_NAME:latest
+        docker push $VAULT_REGISTRY/$CI_PROJECT_ROOT_NAMESPACE/$CI_PROJECT_NAME:latest
+        echo Image $VAULT_REGISTRY/$CI_PROJECT_ROOT_NAMESPACE/$CI_PROJECT_NAME:latest pushed
+      fi
+    - docker push "$VAULT_REGISTRY/$CI_PROJECT_ROOT_NAMESPACE/$CI_PROJECT_NAME:$IMAGE_TAG"
+    - echo Image $VAULT_REGISTRY/$CI_PROJECT_ROOT_NAMESPACE/$CI_PROJECT_NAME:$IMAGE_TAG pushed
+    - docker logout $VAULT_REGISTRY
+  rules:
+    - if: '($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "test") && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - containers/Dockerfile
+        - src/**/*
+        - .gitlab-ci.yml
+        - .version
