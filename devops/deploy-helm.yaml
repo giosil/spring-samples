@@ -1,5 +1,5 @@
 deploy_helm:
-  image: dockerhub.dew.org/gitlab/tda-docker:v1.0.3
+  image: dockerhub.dew.org/gitlab/tda-docker:1.0.0
   variables: 
     DEPLOY_ENV: dew
     DOCKER_REGISTRY: ""
@@ -41,7 +41,7 @@ deploy_helm:
       elif [ "${CI_COMMIT_BRANCH}" == "pre-prod" ] ; then
         K8S_NAMESPACE=${CI_PROJECT_ROOT_NAMESPACE}-pre-prod
       elif [ "${CI_COMMIT_BRANCH}" == "test" ] ; then
-        K8S_NAMESPACE=${CI_PROJECT_ROOT_NAMESPACE}-coll
+        K8S_NAMESPACE=${CI_PROJECT_ROOT_NAMESPACE}-test
       else
         K8S_NAMESPACE=${CI_PROJECT_ROOT_NAMESPACE}-dev
       fi
