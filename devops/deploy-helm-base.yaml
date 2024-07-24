@@ -1,5 +1,5 @@
 deploy_generic_helm:
-  image: dockerhub.dew.org/gitlab/tda-docker:1.0.0
+  image: docker
   variables: 
     DEPLOY_ENV: dew
     HELM_REPO: ""

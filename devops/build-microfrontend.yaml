@@ -1,0 +1,59 @@
+cache: &global_cache
+  key: $CI_COMMIT_REF_SLUG
+  paths:
+    - src/node_modules/
+    - src/public/
+    - src/dist/
+  policy: pull-push
+
+stages:
+  - build
+  - publish
+  - deploy
+
+Build microFrontend:
+  stage: build
+  image: node:16.20.2-alpine3.18
+  cache:
+    <<: *global_cache  
+  script:
+    - cd src
+    - npm config set registry https://nexus.dew.org/repository/npm/
+    - npm install -f
+    - npm run build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "push"'
+
+Publish To Nexus:
+  stage: publish
+  image: node:16.20.2-alpine3.18
+  cache:
+    <<: *global_cache  
+  script:
+    - cd src
+    - npm publish --registry https://nexus.dew.org/repository/npm-private/
+    - echo PACKAGE_NAME=`npm pkg get name | tr -d '"'` > ../output.env
+    - echo PACKAGE_VERSION=`npm pkg get version | tr -d '"'` >> ../output.env
+  artifacts:
+    reports:
+      dotenv: output.env
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "push"'
+
+Deploy to CDN:
+  stage: deploy
+  dependencies:
+    - Publish To Nexus
+  image: peterdavehello/azcopy
+  cache:
+    <<: *global_cache  
+    policy: pull
+  script:
+    - |
+      REAL_PACKAGE_NAME=`echo "${PACKAGE_NAME}" | sed 's/\@dew\///g'` 
+      azcopy login --service-principal  --application-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --tenant-id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      azcopy cp src/dist/${REAL_PACKAGE_NAME}-${PACKAGE_VERSION}.js \
+        https://drstoragecdn.blob.core.windows.net/${CI_COMMIT_BRANCH}/components/${PACKAGE_NAME}/${PACKAGE_VERSION}/${PACKAGE_NAME}-${PACKAGE_VERSION}.js \
+        --overwrite true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "push"'
