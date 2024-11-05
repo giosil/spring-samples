@@ -1,0 +1,22 @@
+variables:
+  ENV_CODE: "test"
+
+stages:
+  - build
+  - deploy
+
+build-job:
+  stage: build
+  script:
+    - mvn package
+    - docker build -t appbe:latest .
+    - echo "Compile complete."
+#  artifacts:
+#    paths:
+#      - target/app-0.0.1-SNAPSHOT.jar
+#    expire_in: 1 hour
+
+deploy-job:
+  stage: deploy
+  script:
+    - helm upgrade -i appbe --set podAnnotations.gitlab=deployed-by-${CI_PIPELINE_ID}-${CI_JOB_ID} ./helm/appbe 
