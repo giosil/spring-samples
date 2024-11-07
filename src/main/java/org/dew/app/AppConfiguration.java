@@ -34,7 +34,7 @@ public class AppConfiguration {
   public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
     LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
     em.setDataSource(dataSource());
-    em.setPackagesToScan(this.getClass().getPackageName() + ".jpa"); // Entities
+    em.setPackagesToScan("org.dew.app.jpa"); // Entities
     
     JpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
     em.setJpaVendorAdapter(vendorAdapter);
