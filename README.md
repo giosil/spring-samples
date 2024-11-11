@@ -18,6 +18,14 @@ or
 
 java -jar ./target/app-0.0.1-SNAPSHOT.jar
 
+## Run application with prod profile
+
+mvn spring-boot:run -Dspring-boot.run.profiles=prod
+
+or 
+
+java -jar ./target/app-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+
 ## Build docker appbe image (Backend)
 
 docker build -t appbe .

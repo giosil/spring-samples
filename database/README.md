@@ -1,3 +1,9 @@
+## Run postgres image (empty DB)
+
+docker run --name appdb-postgres -e POSTGRES_DB=appdb -e POSTGRES_USER=appdb -e POSTGRES_PASSWORD=passw0rd -p 5432:5432 -d postgres:12
+
+docker exec -it appdb-postgres /bin/bash
+
 ## Build docker appdb image (Database)
 
 docker build -t appdb .
