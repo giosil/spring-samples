@@ -17,7 +17,7 @@ import jakarta.persistence.Table;
  * Sequences:
  * 
  * @Id
- * @SequenceGenerator(name="seq",sequenceName="seq_name")
+ * @SequenceGenerator(name="seq",sequenceName="seq_name", allocationSize=1)
  * @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="seq")
  * private Integer id;
  */

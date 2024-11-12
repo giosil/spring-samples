@@ -42,6 +42,8 @@ public class AppConfiguration {
     Map<String, Object> properties = new HashMap<String, Object>();
     properties.put("hibernate.dialect",             env("APP_JPA_DIALECT", "org.hibernate.dialect.PostgreSQLDialect"));
     
+    // properties.put("hibernate.dialect",          "org.hibernate.dialect.OracleDialect");
+    // properties.put("hibernate.dialect",          "org.hibernate.dialect.MySQLDialect");
     // properties.put("hibernate.dialect",          "org.hibernate.dialect.PostgreSQLDialect");
     // properties.put("hibernate.hbm2ddl.auto",     "update");
     // properties.put("hibernate.show_sql",         "true");
