@@ -5,12 +5,16 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import org.springframework.core.env.Environment;
 
 import org.springframework.orm.jpa.JpaVendorAdapter;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -19,13 +23,16 @@ import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 @Configuration
 public class AppConfiguration {
   
+  @Autowired
+  private Environment environment;
+  
   @Bean
   public DataSource dataSource() {
     DataSourceBuilder<?> dataSourceBuilder = DataSourceBuilder.create();
-    dataSourceBuilder.driverClassName(env("APP_DS_DRIVER", "org.postgresql.Driver"));
-    dataSourceBuilder.url(env("APP_DS_URL",                "jdbc:postgresql://localhost:5432/appdb"));
-    dataSourceBuilder.username(env("APP_DS_USER",          "appdb"));
-    dataSourceBuilder.password(env("APP_DS_PASS",          "passw0rd"));
+    dataSourceBuilder.driverClassName(getDataSourceDriver());
+    dataSourceBuilder.url(getDataSourceURL());
+    dataSourceBuilder.username(getDataSourceUser());
+    dataSourceBuilder.password(getDataSourcePass());
     
     return dataSourceBuilder.build();
   }
@@ -40,15 +47,14 @@ public class AppConfiguration {
     em.setJpaVendorAdapter(vendorAdapter);
     
     Map<String, Object> properties = new HashMap<String, Object>();
-    properties.put("hibernate.dialect",             env("APP_JPA_DIALECT", "org.hibernate.dialect.PostgreSQLDialect"));
+    properties.put("hibernate.dialect", getHibernateDialect());
     
-    // properties.put("hibernate.dialect",          "org.hibernate.dialect.OracleDialect");
-    // properties.put("hibernate.dialect",          "org.hibernate.dialect.MySQLDialect");
-    // properties.put("hibernate.dialect",          "org.hibernate.dialect.PostgreSQLDialect");
+    if(isProdProfile()) {
+      properties.put("hibernate.show_sql",         "true");
+      properties.put("hibernate.format_sql",       "true");
+      properties.put("hibernate.use_sql_comments", "true");
+    }
     // properties.put("hibernate.hbm2ddl.auto",     "update");
-    // properties.put("hibernate.show_sql",         "true");
-    // properties.put("hibernate.format_sql",       "true");
-    // properties.put("hibernate.use_sql_comments", "true");
     
     em.setJpaPropertyMap(properties);
     
@@ -80,5 +86,48 @@ public class AppConfiguration {
       return defaultValue;
     }
     return value;
+  }
+  
+  protected boolean isProdProfile() {
+    if(environment == null) return false;
+    String[] activeProfiles = environment.getActiveProfiles();
+    if(activeProfiles == null || activeProfiles.length == 0) {
+      return false;
+    }
+    String result = activeProfiles[0];
+    if(result == null || result.length() == 0) {
+      return false;
+    }
+    return result.equalsIgnoreCase("prod");
+  }
+  
+  protected String getDataSourceDriver() {
+    return env("APP_DS_DRIVER", "org.postgresql.Driver");
+  }
+  
+  protected String getDataSourceURL() {
+    return env("APP_DS_URL", "jdbc:postgresql://localhost:5432/appdb");
+  }
+  
+  protected String getDataSourceUser() {
+    return env("APP_DS_USER", "appdb");
+  }
+  
+  protected String getDataSourcePass() {
+    return env("APP_DS_PASS", "passw0rd");
+  }
+  
+  protected String getHibernateDialect() {
+    String result = env("APP_JPA_DIALECT", null);
+    if(result != null && result.length() > 0) return result;
+    String url = getDataSourceURL();
+    if(url == null || url.length() == 0) return "";
+    if(url.indexOf("oracle:")      >= 0) return "org.hibernate.dialect.OracleDialect";
+    if(url.indexOf("h2:")          >= 0) return "org.hibernate.dialect.H2Dialect";
+    if(url.indexOf("hsqldb:")      >= 0) return "org.hibernate.dialect.HSQLDialect";
+    if(url.indexOf("postgresql:")  >= 0) return "org.hibernate.dialect.PostgreSQLDialect";
+    if(url.indexOf("mysql:")       >= 0) return "org.hibernate.dialect.MySQLDialect";
+    if(url.indexOf("mariadb:")     >= 0) return "org.hibernate.dialect.MySQLDialect";
+    return "";
   }
 }
