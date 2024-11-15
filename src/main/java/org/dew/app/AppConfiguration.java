@@ -49,7 +49,7 @@ public class AppConfiguration {
     Map<String, Object> properties = new HashMap<String, Object>();
     properties.put("hibernate.dialect", getHibernateDialect());
     
-    if(isProdProfile()) {
+    if(!isProdProfile()) {
       properties.put("hibernate.show_sql",         "true");
       properties.put("hibernate.format_sql",       "true");
       properties.put("hibernate.use_sql_comments", "true");
@@ -89,16 +89,18 @@ public class AppConfiguration {
   }
   
   protected boolean isProdProfile() {
-    if(environment == null) return false;
+    if(environment == null) {
+      return false;
+    }
     String[] activeProfiles = environment.getActiveProfiles();
     if(activeProfiles == null || activeProfiles.length == 0) {
       return false;
     }
-    String result = activeProfiles[0];
-    if(result == null || result.length() == 0) {
-      return false;
+    for(int i = 0; i < activeProfiles.length; i++) {
+      String profile = activeProfiles[i];
+      if("prod".equals(profile)) return true;
     }
-    return result.equalsIgnoreCase("prod");
+    return false;
   }
   
   protected String getDataSourceDriver() {
