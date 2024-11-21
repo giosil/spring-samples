@@ -2,11 +2,11 @@
 	"compilerOptions": {
 		"module": "none",
 		"target": "es5",
-		"outFile": "../../resources/static/dist/app.js",
+		"outFile": "../../dist/app.js",
 	},
 	"include": [
 		"../types/**/*",
-		"../../resources/static/dist/wux.d.ts",
+		"../../dist/wux.d.ts",
 		"*"
 	]
 }
