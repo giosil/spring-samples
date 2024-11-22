@@ -6,7 +6,6 @@ declare namespace APP {
     function dropdownBtn(id: string, t: string, items: string, cls?: string): string;
 }
 declare namespace APP {
-    function getURLServices(): string;
     class HttpClient {
         url: string;
         sda: any;

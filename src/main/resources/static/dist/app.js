@@ -41,19 +41,6 @@ var APP;
 })(APP || (APP = {}));
 var APP;
 (function (APP) {
-    function getURLServices() {
-        var h = window.location.hostname;
-        var p = window.location.protocol;
-        if (!p)
-            p = "http:";
-        if (!h || h.indexOf('localhost') >= 0)
-            return "http://localhost:8081";
-        var s = h.indexOf('.');
-        if (s < 1)
-            return "http://localhost:8081";
-        return p + '//hcm-services' + h.substring(s);
-    }
-    APP.getURLServices = getURLServices;
     var HttpClient = /** @class */ (function () {
         function HttpClient(url) {
             if (url) {
@@ -178,7 +165,7 @@ var APP;
         return HttpClient;
     }());
     APP.HttpClient = HttpClient;
-    APP.http = new HttpClient(getURLServices());
+    APP.http = new HttpClient();
 })(APP || (APP = {}));
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
