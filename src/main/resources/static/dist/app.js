@@ -41,6 +41,19 @@ var APP;
 })(APP || (APP = {}));
 var APP;
 (function (APP) {
+    function getURLServices() {
+        var h = window.location.hostname;
+        var p = window.location.protocol;
+        if (!p)
+            p = "http:";
+        if (!h || h.indexOf('localhost') >= 0)
+            return "http://localhost:8081";
+        var s = h.indexOf('.');
+        if (s < 1)
+            return "http://localhost:8081";
+        return p + '//hcm-services' + h.substring(s);
+    }
+    APP.getURLServices = getURLServices;
     var HttpClient = /** @class */ (function () {
         function HttpClient(url) {
             if (url) {
@@ -55,6 +68,16 @@ var APP;
         };
         HttpClient.prototype.after = function () {
             window['BSIT'].hideLoader();
+        };
+        HttpClient.prototype.sim = function (entity, params, success, failure) {
+            var _this = this;
+            console.log('sim(' + entity + ')', params);
+            this.before();
+            setTimeout(function () {
+                _this.after();
+                if (success)
+                    success(_this.sda);
+            }, 1000);
         };
         HttpClient.prototype.get = function (entity, params, success, failure) {
             this._get('GET', entity, params, success, failure);
@@ -79,7 +102,7 @@ var APP;
             var requrl = search ? this.url + "/" + entity + "?" + search : this.url + entity;
             this.before();
             fetch(requrl, {
-                "method": 'GET'
+                "method": method
             })
                 .then(function (response) {
                 _this.after();
@@ -155,7 +178,7 @@ var APP;
         return HttpClient;
     }());
     APP.HttpClient = HttpClient;
-    APP.http = new HttpClient();
+    APP.http = new HttpClient(getURLServices());
 })(APP || (APP = {}));
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {

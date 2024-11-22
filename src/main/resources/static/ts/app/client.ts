@@ -1,7 +1,18 @@
 namespace APP {
 	
+	export function getURLServices() {
+		let h = window.location.hostname;
+		let p = window.location.protocol;
+		if(!p) p = "http:"
+		if(!h || h.indexOf('localhost') >= 0) return "http://localhost:8081";
+		let s = h.indexOf('.');
+		if(s < 1) return "http://localhost:8081";
+		return p + '//hcm-services' + h.substring(s);
+	}
+		
 	export class HttpClient {
 		url: string;
+		sda: any;
 		
 		constructor(url?: string) {
 			if(url) {
@@ -18,6 +29,15 @@ namespace APP {
 		
 		after() {
 			window['BSIT'].hideLoader();
+		}
+		
+		sim(entity: string, params: { [key: string]: any }, success: (result: any) => void, failure?: (error: any) => void) {
+			console.log('sim(' + entity + ')', params);
+			this.before();
+			setTimeout(() => {
+				this.after();
+				if(success) success(this.sda);
+			}, 1000);
 		}
 		
 		get(entity: string, params: { [key: string]: any }, success: (result: any) => void, failure?: (error: any) => void) {
@@ -46,7 +66,7 @@ namespace APP {
 			let requrl = search ? this.url + "/" + entity + "?" + search : this.url + entity;
 			this.before();
 			fetch(requrl, {
-				"method" : 'GET'
+				"method" : method
 			})
 			.then(response => {
 				this.after();
@@ -117,6 +137,6 @@ namespace APP {
 			});
 		}
 	}
-	
-	export let http = new HttpClient();
+
+	export let http = new HttpClient(getURLServices());
 }

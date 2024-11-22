@@ -6,11 +6,16 @@ declare namespace APP {
     function dropdownBtn(id: string, t: string, items: string, cls?: string): string;
 }
 declare namespace APP {
+    function getURLServices(): string;
     class HttpClient {
         url: string;
+        sda: any;
         constructor(url?: string);
         before(): void;
         after(): void;
+        sim(entity: string, params: {
+            [key: string]: any;
+        }, success: (result: any) => void, failure?: (error: any) => void): void;
         get(entity: string, params: {
             [key: string]: any;
         }, success: (result: any) => void, failure?: (error: any) => void): void;
