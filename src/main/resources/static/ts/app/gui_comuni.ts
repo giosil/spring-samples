@@ -38,7 +38,7 @@
 			this.form = new WUX.WFormPanel(this.subId('form'));
 			this.form
 				.addRow()
-					.addTextField('name', 'Denominazione', false, true);
+					.addTextField('name', 'Denominazione', {"autofocus": true});
 			
 			this.btnFind = new WUX.WButton(this.subId('btnFind'), 'Esegui ricerca', 'fa-search', 'btn-icon btn btn-primary', 'margin-right: 0.5rem;');
 			this.btnFind.on('click', (e: PointerEvent) => {
@@ -121,7 +121,7 @@
 			
 			this.fp = new WUX.WFormPanel(this.subId('fp'));
 			this.fp.addRow();
-			this.fp.addTextField('idComune', 'Identificativo', true);
+			this.fp.addTextField('idComune', 'Identificativo', {"readonly": true});
 			this.fp.addRow();
 			this.fp.addTextField('fiscale', 'Codice Fiscale');
 			this.fp.addRow();

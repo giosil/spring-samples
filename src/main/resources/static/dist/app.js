@@ -502,7 +502,7 @@ var APP;
             this.form = new WUX.WFormPanel(this.subId('form'));
             this.form
                 .addRow()
-                .addTextField('name', 'Denominazione', false, true);
+                .addTextField('name', 'Denominazione', { "autofocus": true });
             this.btnFind = new WUX.WButton(this.subId('btnFind'), 'Esegui ricerca', 'fa-search', 'btn-icon btn btn-primary', 'margin-right: 0.5rem;');
             this.btnFind.on('click', function (e) {
                 _this.doFind();
@@ -577,7 +577,7 @@ var APP;
             _this.title = 'Comune';
             _this.fp = new WUX.WFormPanel(_this.subId('fp'));
             _this.fp.addRow();
-            _this.fp.addTextField('idComune', 'Identificativo', true);
+            _this.fp.addTextField('idComune', 'Identificativo', { "readonly": true });
             _this.fp.addRow();
             _this.fp.addTextField('fiscale', 'Codice Fiscale');
             _this.fp.addRow();

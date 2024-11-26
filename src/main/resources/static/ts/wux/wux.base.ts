@@ -228,7 +228,7 @@ namespace WUX {
 
 	/** WField interface */
 	export interface WField {
-		id: string;
+		id?: string;
 		label?: string;
 		classStyle?: string;
 		style?: string | WStyle;
@@ -238,12 +238,16 @@ namespace WUX {
 		type?: string;
 		key?: string;
 		icon?: string;
-		element?: Element;
+		tooltip?: string;
+		element?: WElement;
 		labelCss?: string;
 		labelComp?: WComponent;
+		colClass?: string;
+		colStyle?: string | WStyle;
 		component?: WComponent;
 		required?: boolean;
 		readonly?: boolean;
+		autofocus?: boolean;
 		enabled?: boolean;
 		visible?: boolean;
 		build?: (container: any, data: any) => void;
@@ -682,7 +686,7 @@ namespace WUX {
 				}
 				if (this.debug) console.log('[' + str(this) + '] componentDidMount ctx=' + str(context) + ' root=' + str(this.root));
 				let jq = window['jQuery'] ? window['jQuery'] as JQueryStatic : null;
-				if(jq) this.$r = jq(this.root);
+				if(jq) this.$r = jq(this.root as HTMLElement);
 				this.componentDidMount();
 				if (this.root) {
 					for (let event in this.handlers) {
