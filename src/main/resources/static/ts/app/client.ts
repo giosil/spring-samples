@@ -1,9 +1,14 @@
 namespace APP {
-
+	
+	export function getURLServices() {
+		return window.location.origin;
+	}
+		
 	export class HttpClient {
 		url: string;
-		sda: any;
-		
+		mres: { [key: string]: any };
+		mock: boolean;
+
 		constructor(url?: string) {
 			if(url) {
 				this.url = url;
@@ -21,32 +26,59 @@ namespace APP {
 			window['BSIT'].hideLoader();
 		}
 		
-		sim(entity: string, params: { [key: string]: any }, success: (result: any) => void, failure?: (error: any) => void) {
-			console.log('sim(' + entity + ')', params);
+		sim(method: string, entity: string, params: any, success: (result: any) => void, failure?: (error: any) => void) {
+			console.log('_m(' + method + "," + entity + ')', params);
+			method = method ? method.toLowerCase() : 'get';
 			this.before();
 			setTimeout(() => {
 				this.after();
-				if(success) success(this.sda);
-			}, 1000);
+				let data = this.mres ? this.mres[method] : null;
+				if(data) {
+					if(success) success(data);
+				}
+				else {
+					if(failure) failure({"message": 'No mock data for ' + method});
+				}
+			}, 500);
 		}
 		
 		get(entity: string, params: { [key: string]: any }, success: (result: any) => void, failure?: (error: any) => void) {
+			if(this.mock) {
+				this.sim('get', entity, params, success, failure);
+				return;
+			}
 			this._get('GET', entity, params, success, failure);
 		}
 		
 		delete(entity: string, params: { [key: string]: any }, success: (result: any) => void, failure?: (error: any) => void) {
+			if(this.mock) {
+				this.sim('delete', entity, params, success, failure);
+				return;
+			}
 			this._get('DELETE', entity, params, success, failure);
 		}
 		
 		post(entity: string, data: object, success: (result: any) => void, failure?: (error: any) => void) {
+			if(this.mock) {
+				this.sim('post', entity, data, success, failure);
+				return;
+			}
 			this._send('POST', entity, data, success, failure);
 		}
 		
 		put(entity: string, data: object, success: (result: any) => void, failure?: (error: any) => void) {
+			if(this.mock) {
+				this.sim('put', entity, data, success, failure);
+				return;
+			}
 			this._send('PUT', entity, data, success, failure);
 		}
 		
 		patch(entity: string, data: object, success: (result: any) => void, failure?: (error: any) => void) {
+			if(this.mock) {
+				this.sim('patch', entity, data, success, failure);
+				return;
+			}
 			this._send('PATCH', entity, data, success, failure);
 		}
 		
@@ -61,7 +93,7 @@ namespace APP {
 			.then(response => {
 				this.after();
 				if (!response.ok) {
-					console.error('[AppClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
+					console.error('[HttpClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
 					if(failure) {
 						failure(new Error("HTTP " + response.status));
 					}
@@ -76,7 +108,7 @@ namespace APP {
 				if(success) success(data);
 			})
 			.catch(error => {
-				console.error('[AppClient] ' + method + ' ' + entity + ':', error);
+				console.error('[HttpClient] ' + method + ' ' + entity + ':', error);
 				this.after();
 				if(failure) {
 					failure(error);
@@ -101,7 +133,7 @@ namespace APP {
 			.then(response => {
 				this.after();
 				if (!response.ok) {
-					console.error('[AppClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
+					console.error('[HttpClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
 					if(failure) {
 						failure(new Error("HTTP " + response.status));
 					}
@@ -116,7 +148,7 @@ namespace APP {
 				if(success) success(data);
 			})
 			.catch(error => {
-				console.error('[AppClient] ' + method + ' ' + entity + ':', error);
+				console.error('[HttpClient] ' + method + ' ' + entity + ':', error);
 				this.after();
 				if(failure) {
 					failure(error);
@@ -128,5 +160,5 @@ namespace APP {
 		}
 	}
 
-	export let http = new HttpClient();
+	export let http = new HttpClient(getURLServices());
 }

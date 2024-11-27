@@ -41,6 +41,10 @@ var APP;
 })(APP || (APP = {}));
 var APP;
 (function (APP) {
+    function getURLServices() {
+        return window.location.origin;
+    }
+    APP.getURLServices = getURLServices;
     var HttpClient = /** @class */ (function () {
         function HttpClient(url) {
             if (url) {
@@ -56,29 +60,57 @@ var APP;
         HttpClient.prototype.after = function () {
             window['BSIT'].hideLoader();
         };
-        HttpClient.prototype.sim = function (entity, params, success, failure) {
+        HttpClient.prototype.sim = function (method, entity, params, success, failure) {
             var _this = this;
-            console.log('sim(' + entity + ')', params);
+            console.log('_m(' + method + "," + entity + ')', params);
+            method = method ? method.toLowerCase() : 'get';
             this.before();
             setTimeout(function () {
                 _this.after();
-                if (success)
-                    success(_this.sda);
-            }, 1000);
+                var data = _this.mres ? _this.mres[method] : null;
+                if (data) {
+                    if (success)
+                        success(data);
+                }
+                else {
+                    if (failure)
+                        failure({ "message": 'No mock data for ' + method });
+                }
+            }, 500);
         };
         HttpClient.prototype.get = function (entity, params, success, failure) {
+            if (this.mock) {
+                this.sim('get', entity, params, success, failure);
+                return;
+            }
             this._get('GET', entity, params, success, failure);
         };
         HttpClient.prototype.delete = function (entity, params, success, failure) {
+            if (this.mock) {
+                this.sim('delete', entity, params, success, failure);
+                return;
+            }
             this._get('DELETE', entity, params, success, failure);
         };
         HttpClient.prototype.post = function (entity, data, success, failure) {
+            if (this.mock) {
+                this.sim('post', entity, data, success, failure);
+                return;
+            }
             this._send('POST', entity, data, success, failure);
         };
         HttpClient.prototype.put = function (entity, data, success, failure) {
+            if (this.mock) {
+                this.sim('put', entity, data, success, failure);
+                return;
+            }
             this._send('PUT', entity, data, success, failure);
         };
         HttpClient.prototype.patch = function (entity, data, success, failure) {
+            if (this.mock) {
+                this.sim('patch', entity, data, success, failure);
+                return;
+            }
             this._send('PATCH', entity, data, success, failure);
         };
         HttpClient.prototype._get = function (method, entity, params, success, failure) {
@@ -94,7 +126,7 @@ var APP;
                 .then(function (response) {
                 _this.after();
                 if (!response.ok) {
-                    console.error('[AppClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
+                    console.error('[HttpClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
                     if (failure) {
                         failure(new Error("HTTP " + response.status));
                     }
@@ -110,7 +142,7 @@ var APP;
                     success(data);
             })
                 .catch(function (error) {
-                console.error('[AppClient] ' + method + ' ' + entity + ':', error);
+                console.error('[HttpClient] ' + method + ' ' + entity + ':', error);
                 _this.after();
                 if (failure) {
                     failure(error);
@@ -136,7 +168,7 @@ var APP;
                 .then(function (response) {
                 _this.after();
                 if (!response.ok) {
-                    console.error('[AppClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
+                    console.error('[HttpClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
                     if (failure) {
                         failure(new Error("HTTP " + response.status));
                     }
@@ -152,7 +184,7 @@ var APP;
                     success(data);
             })
                 .catch(function (error) {
-                console.error('[AppClient] ' + method + ' ' + entity + ':', error);
+                console.error('[HttpClient] ' + method + ' ' + entity + ':', error);
                 _this.after();
                 if (failure) {
                     failure(error);
@@ -165,7 +197,7 @@ var APP;
         return HttpClient;
     }());
     APP.HttpClient = HttpClient;
-    APP.http = new HttpClient();
+    APP.http = new HttpClient(getURLServices());
 })(APP || (APP = {}));
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
