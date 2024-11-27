@@ -42,7 +42,7 @@ var APP;
 var APP;
 (function (APP) {
     function getURLServices() {
-        return window.location.origin;
+        return '';
     }
     APP.getURLServices = getURLServices;
     var HttpClient = /** @class */ (function () {
@@ -67,14 +67,20 @@ var APP;
             this.before();
             setTimeout(function () {
                 _this.after();
-                var data = _this.mres ? _this.mres[method] : null;
-                if (data) {
+                var d = null;
+                if (_this.mres) {
+                    var r = _this.mres[method + "_" + entity];
+                    if (!r)
+                        _this.mres[method];
+                    d = (typeof r === 'function') ? r(params) : r;
+                }
+                if (d) {
                     if (success)
-                        success(data);
+                        success(d);
                 }
                 else {
                     if (failure)
-                        failure({ "message": 'No mock data for ' + method });
+                        failure({ "message": 'No mock data for ' + method + ' ' + entity });
                 }
             }, 500);
         };

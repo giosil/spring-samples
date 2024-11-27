@@ -1,14 +1,14 @@
 namespace APP {
 	
 	export function getURLServices() {
-		return window.location.origin;
+		return '';
 	}
-		
+	
 	export class HttpClient {
 		url: string;
 		mres: { [key: string]: any };
 		mock: boolean;
-
+		
 		constructor(url?: string) {
 			if(url) {
 				this.url = url;
@@ -32,12 +32,17 @@ namespace APP {
 			this.before();
 			setTimeout(() => {
 				this.after();
-				let data = this.mres ? this.mres[method] : null;
-				if(data) {
-					if(success) success(data);
+				let d = null;
+				if(this.mres) {
+					let r = this.mres[method + "_" + entity];
+					if(!r) this.mres[method];
+					d = (typeof r === 'function') ? r(params) : r;
+				}
+				if(d) {
+					if(success) success(d);
 				}
 				else {
-					if(failure) failure({"message": 'No mock data for ' + method});
+					if(failure) failure({"message": 'No mock data for ' + method + ' ' + entity});
 				}
 			}, 500);
 		}
