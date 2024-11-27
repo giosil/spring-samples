@@ -27,7 +27,7 @@ namespace APP {
 		}
 		
 		sim(method: string, entity: string, params: any, success: (result: any) => void, failure?: (error: any) => void) {
-			console.log('_m(' + method + "," + entity + ')', params);
+			console.log('sim(' + method + "," + entity + ')', params);
 			method = method ? method.toLowerCase() : 'get';
 			this.before();
 			setTimeout(() => {
@@ -35,7 +35,7 @@ namespace APP {
 				let d = null;
 				if(this.mres) {
 					let r = this.mres[method + "_" + entity];
-					if(!r) this.mres[method];
+					if(!r) r = this.mres[method];
 					d = (typeof r === 'function') ? r(params) : r;
 				}
 				if(d) {
