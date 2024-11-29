@@ -1,0 +1,21 @@
+{
+  "name": "spring-samples-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "../dist/app.js",
+  "type": "module",
+  "scripts": {
+    "compile:wux" : "tsc --declaration --project ./wux/tsconfig.json",
+    "compile:app" : "tsc --declaration --project ./app/tsconfig.json",
+    "minify:wux" : "uglifyjs -c -o ../dist/wux.min.js -m -- ../dist/wux.js",
+    "minify:app" : "uglifyjs -c -o ../dist/app.min.js -m -- ../dist/app.js",
+    "deploy:app" : "copy ..\\dist\\*.* ..\\..\\..\\..\\..\\target\\classes\\static\\dist",
+    "reload:app" : "echo. >> ../../../../../target/classes/application.properties",
+    "build": "npm run compile:wux && npm run compile:app && npm run minify:wux && npm run minify:app && npm run deploy:app && npm run reload:app",
+    "build_app": "npm run compile:app && npm run minify:app && npm run deploy:app && npm run reload:app",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
