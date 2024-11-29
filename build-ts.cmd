@@ -17,3 +17,9 @@ rem npm install uglify-js -g
 echo Minify...
 call uglifyjs -c -o ../dist/wux.min.js -m -- ../dist/wux.js
 call uglifyjs -c -o ../dist/app.min.js -m -- ../dist/app.js
+
+rem Refresh Spring-Boot
+IF EXIST ..\..\..\..\..\target (
+	copy ..\dist\*.* ..\..\..\..\..\target\classes\static\dist
+	echo. >> ..\..\..\..\..\target\classes\application.properties
+)

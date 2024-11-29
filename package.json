@@ -1,11 +1,16 @@
 {
-  "name": "hcm-portal-app",
+  "name": "spring-samples-app",
   "version": "1.0.0",
   "description": "",
-  "main": "src/main/resources/static/app/app.js",
+  "main": "src/main/resources/static/dist/app.js",
   "type": "module",
   "scripts": {
-    "build": "tsc --declaration --project ./src/main/resources/static/ts/wux/tsconfig.json && tsc --declaration --project ./src/main/resources/static/ts/app/tsconfig.json && uglifyjs -c -o ./src/main/resources/static/dist/wux.min.js -m -- ./src/main/resources/static/dist/wux.js && uglifyjs -c -o ./src/main/resources/static/dist/app.min.js -m -- ./src/main/resources/static/dist/app.js",
+    "compile:wux" : "tsc --declaration --project ./src/main/resources/static/ts/wux/tsconfig.json",
+    "compile:app" : "tsc --declaration --project ./src/main/resources/static/ts/app/tsconfig.json",
+    "minify:wux" : "uglifyjs -c -o ./src/main/resources/static/dist/wux.min.js -m -- ./src/main/resources/static/dist/wux.js",
+    "minify:app" : "uglifyjs -c -o ./src/main/resources/static/dist/app.min.js -m -- ./src/main/resources/static/dist/app.js",
+    "build": "npm run compile:wux && npm run compile:app && npm run minify:wux && npm run minify:app",
+    "build_app": "npm run compile:app && npm run minify:app",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
