@@ -42,7 +42,7 @@ var APP;
 var APP;
 (function (APP) {
     function getURLServices() {
-        return '';
+        return window.location.origin;
     }
     APP.getURLServices = getURLServices;
     var HttpClient = /** @class */ (function () {
@@ -62,7 +62,7 @@ var APP;
         };
         HttpClient.prototype.sim = function (method, entity, params, success, failure) {
             var _this = this;
-            console.log('_m(' + method + "," + entity + ')', params);
+            console.log('sim(' + method + "," + entity + ')', params);
             method = method ? method.toLowerCase() : 'get';
             this.before();
             setTimeout(function () {
@@ -71,10 +71,10 @@ var APP;
                 if (_this.mres) {
                     var r = _this.mres[method + "_" + entity];
                     if (!r)
-                        _this.mres[method];
-                    d = (typeof r === 'function') ? r(params) : r;
+                        r = _this.mres[method];
+                    d = (typeof r === 'function') ? r(entity, params) : r;
                 }
-                if (d) {
+                if (d != null && d != undefined) {
                     if (success)
                         success(d);
                 }
@@ -238,7 +238,7 @@ var APP;
         };
         Breadcrumb.prototype.render = function () {
             if (!this.home)
-                this.home = '/index.html';
+                this.home = '/';
             if (!this._classStyle)
                 this._classStyle = 'mb-5 breadcrumb-container';
             if (!this.props)
@@ -248,15 +248,15 @@ var APP;
             var r = '<nav class="' + this._classStyle + '" aria-label="breadcrumb"' + s + a + '>';
             r += '<ol class="breadcrumb"><li class="breadcrumb-item"><a href="' + this.home + '">Homepage</a><span class="separator">/</span></li>';
             if (this.state) {
-                for (var _i = 0, _a = this.state; _i < _a.length; _i++) {
-                    var l = _a[_i];
-                    if (!l)
-                        continue;
+                var l = this.state.length;
+                for (var i = 0; i < l; i++) {
+                    var e = this.state[i];
+                    var s_1 = i < l - 1 ? '<span class="separator">/</span>' : '';
                     if (l[0] == '<') {
-                        r += '<li class="breadcrumb-item">' + l + '</li>';
+                        r += '<li class="breadcrumb-item">' + e + s_1 + '</li>';
                     }
                     else {
-                        r += '<li class="breadcrumb-item"><a href="#">' + l + '</a></li>';
+                        r += '<li class="breadcrumb-item"><a href="#">' + e + s_1 + '</a></li>';
                     }
                 }
             }
@@ -724,4 +724,176 @@ var APP;
         return GUILogs;
     }(WUX.WComponent));
     APP.GUILogs = GUILogs;
+})(APP || (APP = {}));
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+var APP;
+(function (APP) {
+    var Mock = /** @class */ (function () {
+        function Mock() {
+            this.dat = JSON.parse(localStorage.getItem("mockd"));
+            this.seq = JSON.parse(localStorage.getItem("mocks"));
+            if (!this.dat)
+                this.dat = {};
+            if (!this.seq)
+                this.seq = {};
+        }
+        Mock.prototype.clean = function (coll) {
+            coll = this.norm(coll);
+            this.dat[coll] = [];
+            this.seq[coll] = 0;
+            localStorage.setItem('mockd', JSON.stringify(this.dat));
+            localStorage.setItem('mocks', JSON.stringify(this.seq));
+        };
+        Mock.prototype.clear = function () {
+            this.dat = {};
+            this.seq = {};
+            localStorage.setItem('mockd', JSON.stringify(this.dat));
+            localStorage.setItem('mocks', JSON.stringify(this.seq));
+        };
+        Mock.prototype.inc = function (coll) {
+            coll = this.norm(coll);
+            var r = this.seq[coll];
+            if (!r) {
+                this.seq[coll] = 1;
+                localStorage.setItem('mocks', JSON.stringify(this.seq));
+                return 1;
+            }
+            this.seq[coll] = ++r;
+            localStorage.setItem('mocks', JSON.stringify(this.seq));
+            return r;
+        };
+        Mock.prototype.find = function (coll, filter) {
+            coll = this.norm(coll);
+            console.log('[Mock] find ' + coll, filter);
+            var r = this.dat[coll];
+            if (!r)
+                return [];
+            if (filter) {
+                var rf = [];
+                for (var i = 0; i < r.length; i++) {
+                    if (this.match(r[i], filter)) {
+                        rf.push(r[i]);
+                    }
+                }
+                return rf;
+            }
+            return r;
+        };
+        Mock.prototype.ins = function (coll, ent, key) {
+            coll = this.norm(coll);
+            console.log('[Mock] ins ' + coll, ent);
+            if (!ent)
+                return null;
+            var r = this.dat[coll];
+            if (!r)
+                r = [];
+            if (key && !ent[key]) {
+                ent[key] = this.inc(coll);
+            }
+            r.push(ent);
+            this.dat[coll] = r;
+            localStorage.setItem('mockd', JSON.stringify(this.dat));
+            return ent;
+        };
+        Mock.prototype.upd = function (coll, ent, key) {
+            coll = this.norm(coll);
+            console.log('[Mock] upd ' + coll, ent);
+            if (!ent || !key)
+                return null;
+            var r = this.dat[coll];
+            if (!r)
+                return null;
+            for (var i = 0; i < r.length; i++) {
+                if (r[i][key] == ent[key]) {
+                    r[i] = __assign(__assign({}, r[i]), ent);
+                    return r[i];
+                }
+            }
+            localStorage.setItem('mockd', JSON.stringify(this.dat));
+            return null;
+        };
+        Mock.prototype.del = function (coll, val, key) {
+            coll = this.norm(coll);
+            console.log('[Mock] del ' + coll + ', ' + val + ', ' + key);
+            if (!key || !val)
+                return false;
+            var r = this.dat[coll];
+            if (!r)
+                return false;
+            if (typeof val == 'object') {
+                val = val[key];
+            }
+            var x = -1;
+            for (var i = 0; i < r.length; i++) {
+                if (r[i][key] == val) {
+                    x = i;
+                    break;
+                }
+            }
+            if (x < 0)
+                return false;
+            r.splice(x, 1);
+            this.dat[coll] = r;
+            localStorage.setItem('mockd', JSON.stringify(this.dat));
+            if (r.length == 0) {
+                this.seq[coll] = 0;
+                localStorage.setItem('mocks', JSON.stringify(this.seq));
+            }
+            return true;
+        };
+        Mock.prototype.read = function (coll, key, val) {
+            coll = this.norm(coll);
+            console.log('[Mock] read ' + coll + ', ' + key + ', ' + val);
+            if (!key || !val)
+                return null;
+            var r = this.dat[coll];
+            if (!r)
+                return null;
+            for (var i = 0; i < r.length; i++) {
+                if (r[i][key] == val)
+                    return r[i];
+            }
+            return null;
+        };
+        Mock.prototype.match = function (rec, flt) {
+            if (!rec)
+                return false;
+            if (!flt)
+                return true;
+            for (var f in flt) {
+                if (flt.hasOwnProperty(f)) {
+                    var a = rec[f];
+                    var b = flt[f];
+                    if (typeof a == 'string') {
+                        if (a.indexOf(b) < 0)
+                            return false;
+                    }
+                    else if (a != b) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        };
+        Mock.prototype.norm = function (coll) {
+            if (!coll)
+                return 'default';
+            var s = coll.indexOf('/');
+            if (s > 0)
+                coll = coll.substring(0, s);
+            return coll.trim().toLowerCase();
+        };
+        return Mock;
+    }());
+    APP.Mock = Mock;
 })(APP || (APP = {}));

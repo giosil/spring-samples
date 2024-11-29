@@ -1,7 +1,7 @@
 namespace APP {
 	
 	export function getURLServices() {
-		return '';
+		return window.location.origin;
 	}
 	
 	export class HttpClient {
@@ -36,9 +36,9 @@ namespace APP {
 				if(this.mres) {
 					let r = this.mres[method + "_" + entity];
 					if(!r) r = this.mres[method];
-					d = (typeof r === 'function') ? r(params) : r;
+					d = (typeof r === 'function') ? r(entity, params) : r;
 				}
-				if(d) {
+				if(d != null && d != undefined) {
 					if(success) success(d);
 				}
 				else {

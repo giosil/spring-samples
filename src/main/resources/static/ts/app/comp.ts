@@ -14,7 +14,7 @@ namespace APP {
 		}
 		
 		render() {
-			if(!this.home) this.home = '/index.html';
+			if(!this.home) this.home = '/';
 			if(!this._classStyle) this._classStyle = 'mb-5 breadcrumb-container';
 			if(!this.props) this.props = '/';
 			let s = this._style ? ' style="' + this._style + '"' : '';
@@ -22,13 +22,15 @@ namespace APP {
 			let r = '<nav class="' + this._classStyle + '" aria-label="breadcrumb"' + s + a + '>';
 			r += '<ol class="breadcrumb"><li class="breadcrumb-item"><a href="' + this.home + '">Homepage</a><span class="separator">/</span></li>';
 			if(this.state) {
-				for(let l of this.state) {
-					if(!l) continue;
+				let l = this.state.length;
+				for(let i = 0; i < l; i++) {
+					let e = this.state[i];
+					let s = i < l - 1 ? '<span class="separator">/</span>' : '';
 					if(l[0] == '<') {
-						r += '<li class="breadcrumb-item">' + l + '</li>';
+						r += '<li class="breadcrumb-item">' + e + s + '</li>';
 					}
 					else {
-						r += '<li class="breadcrumb-item"><a href="#">' + l + '</a></li>';
+						r += '<li class="breadcrumb-item"><a href="#">' + e + s + '</a></li>';
 					}
 				}
 			}

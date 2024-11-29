@@ -114,6 +114,27 @@ declare namespace APP {
     }
 }
 declare namespace APP {
+    class Mock {
+        dat: {
+            [coll: string]: any[];
+        };
+        seq: {
+            [coll: string]: number;
+        };
+        constructor();
+        clean(coll: string): void;
+        clear(): void;
+        inc(coll: string): number;
+        find(coll: string, filter?: any): any[];
+        ins(coll: string, ent: any, key?: string): any;
+        upd(coll: string, ent: any, key: string): any;
+        del(coll: string, val: any, key: string): boolean;
+        read(coll: string, key: string, val: any): any;
+        protected match(rec: any, flt: any): boolean;
+        protected norm(coll: string): string;
+    }
+}
+declare namespace APP {
     interface Comune {
         idComune: string;
         fiscale?: string;
