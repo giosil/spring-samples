@@ -79,8 +79,12 @@ var APP;
                         success(d);
                 }
                 else {
-                    if (failure)
+                    if (failure) {
                         failure({ "message": 'No mock data for ' + method + ' ' + entity });
+                    }
+                    else {
+                        APP.showError("Errore servizio", 'No mock data for ' + method + ' ' + entity);
+                    }
                 }
             }, 500);
         };
