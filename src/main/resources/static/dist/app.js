@@ -41,18 +41,10 @@ var APP;
 })(APP || (APP = {}));
 var APP;
 (function (APP) {
-    function getURLServices() {
-        return window.location.origin;
-    }
-    APP.getURLServices = getURLServices;
     var HttpClient = /** @class */ (function () {
-        function HttpClient(url) {
-            if (url) {
-                this.url = url;
-            }
-            else {
-                this.url = window.location.origin;
-            }
+        function HttpClient(url, auth) {
+            this.url = url ? url : window.location.origin;
+            this.auth = auth ? auth : '';
         }
         HttpClient.prototype.before = function () {
             window['BSIT'].showLoader();
@@ -83,7 +75,7 @@ var APP;
                         failure({ "message": 'No mock data for ' + method + ' ' + entity });
                     }
                     else {
-                        APP.showError("Errore servizio", 'No mock data for ' + method + ' ' + entity);
+                        APP.showError('No mock data for ' + method + ' ' + entity, 'Errore simulazione');
                     }
                 }
             }, 500);
@@ -131,25 +123,45 @@ var APP;
             var requrl = search ? this.url + "/" + entity + "?" + search : this.url + entity;
             this.before();
             fetch(requrl, {
-                "method": method
+                "method": method,
+                "headers": {
+                    "Authorization": this.auth
+                }
             })
                 .then(function (response) {
                 _this.after();
                 if (!response.ok) {
                     console.error('[HttpClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
-                    if (failure) {
-                        failure(new Error("HTTP " + response.status));
-                    }
-                    else {
-                        APP.showError("Errore servizio", "Si e' verificato un errore di servizio.");
-                    }
-                    return;
                 }
-                return response.json();
+                return response.json().then(function (body) { return ({
+                    status: response.status,
+                    body: body
+                }); });
             })
                 .then(function (data) {
-                if (success)
-                    success(data);
+                if (!data)
+                    return;
+                var s = data.status;
+                var b = data.body;
+                if (s >= 200 && s < 300) {
+                    if (success)
+                        success(b);
+                }
+                else {
+                    if (!b)
+                        b = {};
+                    var m = b.message;
+                    if (!m) {
+                        m = 'Errore HTTP ' + s;
+                        b["message"] = m;
+                    }
+                    if (failure) {
+                        failure(b);
+                    }
+                    else {
+                        APP.showError(m, 'Errore servizio');
+                    }
+                }
             })
                 .catch(function (error) {
                 console.error('[HttpClient] ' + method + ' ' + entity + ':', error);
@@ -158,7 +170,7 @@ var APP;
                     failure(error);
                 }
                 else {
-                    APP.showError("Errore servizio", "Si e' verificato un errore di servizio.");
+                    APP.showError('Servizio non disponibile.', 'Errore chiamata');
                 }
             });
         };
@@ -171,7 +183,8 @@ var APP;
             fetch(requrl, {
                 "method": method,
                 headers: {
-                    "Content-Type": "application/json",
+                    "Content-Type": 'application/json',
+                    "Authorization": this.auth
                 },
                 body: JSON.stringify(data)
             })
@@ -179,19 +192,36 @@ var APP;
                 _this.after();
                 if (!response.ok) {
                     console.error('[HttpClient] ' + method + ' ' + entity + ': HTTP ' + response.status);
-                    if (failure) {
-                        failure(new Error("HTTP " + response.status));
-                    }
-                    else {
-                        APP.showError("Errore servizio", "Si e' verificato un errore di servizio.");
-                    }
-                    return;
                 }
-                return response.json();
+                return response.json().then(function (body) { return ({
+                    status: response.status,
+                    body: body
+                }); });
             })
                 .then(function (data) {
-                if (success)
-                    success(data);
+                if (!data)
+                    return;
+                var s = data.status;
+                var b = data.body;
+                if (s >= 200 && s < 300) {
+                    if (success)
+                        success(b);
+                }
+                else {
+                    if (!b)
+                        b = {};
+                    var m = b.message;
+                    if (!m) {
+                        m = 'Errore HTTP ' + s;
+                        b["message"] = m;
+                    }
+                    if (failure) {
+                        failure(b);
+                    }
+                    else {
+                        APP.showError(m, 'Errore servizio');
+                    }
+                }
             })
                 .catch(function (error) {
                 console.error('[HttpClient] ' + method + ' ' + entity + ':', error);
@@ -200,14 +230,14 @@ var APP;
                     failure(error);
                 }
                 else {
-                    APP.showError("Errore servizio", "Si e' verificato un errore di servizio.");
+                    APP.showError('Servizio non disponibile.', 'Errore chiamata');
                 }
             });
         };
         return HttpClient;
     }());
     APP.HttpClient = HttpClient;
-    APP.http = new HttpClient(getURLServices());
+    APP.http = new HttpClient();
 })(APP || (APP = {}));
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
