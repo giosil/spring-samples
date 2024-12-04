@@ -23,6 +23,9 @@ declare namespace APP {
         delete(entity: string, params: {
             [key: string]: any;
         }, success: (result: any) => void, failure?: (error: any) => void): void;
+        remove(entity: string, params: {
+            [key: string]: any;
+        }, success: (result: any) => void, failure?: (error: any) => void): void;
         post(entity: string, data: object, success: (result: any) => void, failure?: (error: any) => void): void;
         put(entity: string, data: object, success: (result: any) => void, failure?: (error: any) => void): void;
         patch(entity: string, data: object, success: (result: any) => void, failure?: (error: any) => void): void;

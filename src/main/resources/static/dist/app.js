@@ -92,6 +92,13 @@ var APP;
                 this.sim('delete', entity, params, success, failure);
                 return;
             }
+            this._send('DELETE', entity, params, success, failure);
+        };
+        HttpClient.prototype.remove = function (entity, params, success, failure) {
+            if (this.mock) {
+                this.sim('delete', entity, params, success, failure);
+                return;
+            }
             this._get('DELETE', entity, params, success, failure);
         };
         HttpClient.prototype.post = function (entity, data, success, failure) {
