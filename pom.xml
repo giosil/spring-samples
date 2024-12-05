@@ -55,5 +55,26 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
 		</plugins>
+		<plugin>
+			<groupId>org.codehaus.mojo</groupId>
+			<artifactId>exec-maven-plugin</artifactId>
+			<version>3.1.0</version>
+			<executions>
+				<execution>
+					<id>compile-ts</id>
+					<phase>validate</phase>
+					<goals>
+						<goal>exec</goal>
+					</goals>
+					<configuration>
+						<executable>npm</executable>
+						<arguments>
+							<argument>run</argument>
+							<argument>build</argument>
+						</arguments>
+					</configuration>
+				</execution>
+			</executions>
+		</plugin>
 	</build>
 </project>
