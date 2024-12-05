@@ -11,6 +11,7 @@ npm run build
 mvn clean package
 
 or
+
 mvn clean package -DskipTests
 
 ## Run application

@@ -2,7 +2,7 @@
 	"compilerOptions": {
 		"module": "none",
 		"target": "es5",
-		"outFile": "../../dist/wux.js"
+		"outFile": "../../app/wux.js"
 	},
 	"include": [
 		"../types/**/*",
