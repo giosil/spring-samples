@@ -1,5 +1,5 @@
 namespace APP {
-	
+
 	export class HttpClient {
 		url: string;
 		mres: { [key: string]: any };

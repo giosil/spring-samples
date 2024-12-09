@@ -277,6 +277,17 @@ var APP;
                 this.state.push(link);
             return this;
         };
+        Breadcrumb.prototype.status = function (t) {
+            if (!this.leid)
+                return this;
+            if (!this.lhtm)
+                this.lhtm = '';
+            var l = document.getElementById(this.leid);
+            var h = t ? ' <span class="badge bg-primary" style="margin-left:0.5rem;">' + t + '</span>' : '';
+            if (l)
+                l.innerHTML = this.lhtm + h;
+            return this;
+        };
         Breadcrumb.prototype.render = function () {
             if (!this.home)
                 this.home = '/';
@@ -294,10 +305,14 @@ var APP;
                     var e = this.state[i];
                     var s_1 = i < l - 1 ? '<span class="separator">/</span>' : '';
                     if (l[0] == '<') {
-                        r += '<li class="breadcrumb-item">' + e + s_1 + '</li>';
+                        r += '<li class="breadcrumb-item" id="' + this.id + '-' + i + '">' + e + s_1 + '</li>';
                     }
                     else {
-                        r += '<li class="breadcrumb-item"><a href="#">' + e + s_1 + '</a></li>';
+                        r += '<li class="breadcrumb-item"><a href="#" id="' + this.id + '-' + i + '">' + e + s_1 + '</a></li>';
+                    }
+                    if (i == l - 1) {
+                        this.lhtm = e;
+                        this.leid = this.id + '-' + i;
                     }
                 }
             }
@@ -578,7 +593,7 @@ var APP;
             var _this = this;
             this.brcr = new APP.Breadcrumb();
             this.brcr.add('Comuni');
-            this.form = new WUX.WFormPanel(this.subId('form'));
+            this.form = new WUX.WForm(this.subId('form'));
             this.form
                 .addRow()
                 .addTextField('name', 'Denominazione', { "autofocus": true });
@@ -654,7 +669,7 @@ var APP;
         function DlgComune(id) {
             var _this = _super.call(this, id, 'DlgComune') || this;
             _this.title = 'Comune';
-            _this.fp = new WUX.WFormPanel(_this.subId('fp'));
+            _this.fp = new WUX.WForm(_this.subId('fp'));
             _this.fp.addRow();
             _this.fp.addTextField('idComune', 'Identificativo', { "readonly": true });
             _this.fp.addRow();
@@ -916,8 +931,16 @@ var APP;
                     var a = rec[f];
                     var b = flt[f];
                     if (typeof a == 'string') {
-                        if (a.indexOf(b) < 0)
+                        if (b && a.indexOf(b) < 0)
                             return false;
+                    }
+                    else if (a == undefined || a == null) {
+                        if (b == undefined || b == null || b == '')
+                            return true;
+                        return false;
+                    }
+                    else if (b == undefined || b == null) {
+                        return true;
                     }
                     else if (a != b) {
                         return false;

@@ -10,7 +10,7 @@
 		
 		brcr: Breadcrumb;
 		
-		form: WUX.WFormPanel;
+		form: WUX.WForm;
 		btnFind: WUX.WButton;
 		btnReset: WUX.WButton;
 		table: WUX.WTable;
@@ -35,7 +35,7 @@
 			this.brcr = new Breadcrumb();
 			this.brcr.add('Comuni');
 			
-			this.form = new WUX.WFormPanel(this.subId('form'));
+			this.form = new WUX.WForm(this.subId('form'));
 			this.form
 				.addRow()
 					.addTextField('name', 'Denominazione', {"autofocus": true});
@@ -112,14 +112,14 @@
 	}
 	
 	export class DlgComune extends WUX.WDialog<string, Comune> {
-		fp: WUX.WFormPanel;
+		fp: WUX.WForm;
 		
 		constructor(id: string) {
 			super(id, 'DlgComune');
 			
 			this.title = 'Comune';
 			
-			this.fp = new WUX.WFormPanel(this.subId('fp'));
+			this.fp = new WUX.WForm(this.subId('fp'));
 			this.fp.addRow();
 			this.fp.addTextField('idComune', 'Identificativo', {"readonly": true});
 			this.fp.addRow();

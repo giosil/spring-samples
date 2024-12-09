@@ -39,8 +39,11 @@ declare namespace APP {
 declare namespace APP {
     class Breadcrumb extends WUX.WComponent<string, string[]> {
         home: string;
+        lhtm: string;
+        leid: string;
         constructor(id?: string, classStyle?: string, style?: string | WUX.WStyle, attributes?: string | object);
         add(link: string): this;
+        status(t: string): this;
         render(): string;
     }
     class ResPages extends WUX.WComponent<number, number> {
@@ -73,7 +76,7 @@ declare namespace APP {
     class GUIComuni extends WUX.WComponent {
         main: WUX.WContainer;
         brcr: Breadcrumb;
-        form: WUX.WFormPanel;
+        form: WUX.WForm;
         btnFind: WUX.WButton;
         btnReset: WUX.WButton;
         table: WUX.WTable;
@@ -83,7 +86,7 @@ declare namespace APP {
         doFind(): void;
     }
     class DlgComune extends WUX.WDialog<string, Comune> {
-        fp: WUX.WFormPanel;
+        fp: WUX.WForm;
         constructor(id: string);
         updateState(nextState: Comune): void;
         getState(): Comune;
