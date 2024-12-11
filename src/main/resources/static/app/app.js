@@ -127,7 +127,7 @@ var APP;
             if (!method)
                 method = 'GET';
             var search = params ? new URLSearchParams(params).toString() : "";
-            var requrl = search ? this.url + "/" + entity + "?" + search : this.url + entity;
+            var requrl = search ? this.url + "/" + entity + "?" + search : this.url + "/" + entity;
             this.before();
             fetch(requrl, {
                 "method": method,

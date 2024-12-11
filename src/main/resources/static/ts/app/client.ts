@@ -96,7 +96,7 @@ namespace APP {
 		_get(method: string, entity: string, params: { [key: string]: any }, success: (result: any) => void, failure?: (error: any) => void) {
 			if(!method) method = 'GET';
 			let search = params ? new URLSearchParams(params).toString() : "";
-			let requrl = search ? this.url + "/" + entity + "?" + search : this.url + entity;
+			let requrl = search ? this.url + "/" + entity + "?" + search : this.url + "/" + entity;
 			this.before();
 			fetch(requrl, {
 				"method" : method,
