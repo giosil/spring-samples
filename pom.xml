@@ -33,6 +33,16 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
+			<groupId>gg.jte</groupId>
+			<artifactId>jte</artifactId>
+			<version>3.1.12</version>
+		</dependency>
+		<dependency>
+			<groupId>gg.jte</groupId>
+			<artifactId>jte-spring-boot-starter-3</artifactId>
+			<version>3.1.12</version>
+		</dependency>
+		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
@@ -51,34 +61,55 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>gg.jte</groupId>
+				<artifactId>jte-maven-plugin</artifactId>
+				<version>3.1.12</version>
+				<executions>
+					<execution>
+						<id>jte-generate</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<sourceDirectory>${project.basedir}/src/main/jte</sourceDirectory>
+							<contentType>Html</contentType>
+							<binaryStaticContent>true</binaryStaticContent>
+							<targetResourceDirectory>${project.build.outputDirectory}</targetResourceDirectory>
+							<targetDirectory>${project.build.outputDirectory}</targetDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>build-frontend</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+						<configuration>
+							<executable>npm</executable>
+							<arguments>
+								<argument>run</argument>
+								<argument>build_ifnc</argument>
+							</arguments>
+							<successCodes>
+								<successCode>0</successCode>
+								<successCode>1</successCode>
+							</successCodes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
-		<plugin>
-			<groupId>org.codehaus.mojo</groupId>
-			<artifactId>exec-maven-plugin</artifactId>
-			<version>3.1.0</version>
-			<executions>
-				<execution>
-					<id>build-frontend</id>
-					<phase>validate</phase>
-					<goals>
-						<goal>exec</goal>
-					</goals>
-					<configuration>
-						<executable>npm</executable>
-						<arguments>
-							<argument>run</argument>
-							<argument>build_ifnc</argument>
-						</arguments>
-						<successCodes>
-							<successCode>0</successCode>
-							<successCode>1</successCode>
-						</successCodes>
-					</configuration>
-				</execution>
-			</executions>
-		</plugin>
 	</build>
 </project>

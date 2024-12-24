@@ -8,20 +8,6 @@
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="css/main.css" rel="stylesheet">
-    
-    <script type="systemjs-importmap">
-      {
-        "imports": {
-          "single-spa":       "https://cdn.jsdelivr.net/npm/single-spa@5.9.0/lib/system/single-spa.min.js",
-          "@dew/root-config": "/spa/root-config.js",
-          "@dew/app-conf":    "/spa/app-conf.js",
-          "@dew/app-docs":    "/spa/app-docs.js",
-          "@dew/app-info":    "/spa/app-info.js",
-          "@dew/app-logs":    "/spa/app-logs.js"
-        }
-      }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/systemjs@6.8.3/dist/system.min.js"></script>
   </head>
   <body>
     <header>
@@ -30,25 +16,16 @@
     <hr>
     <div id="nav1-items"></div>
     <hr>
-    <div class="container" id="single-spa-application">
-      <div id="view-root"></div>
+    <div class="container">
+      <p>The project contains some examples of Spring-Boot usage.</p>
     </div>
     
-    <div id="notification-center"></div>
-    <div id="wux-waitpls" class="waitpls"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/js/all.min.js"></script>
     
-    <script src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     
     <script src="js/custom.js"></script>
     <script src="js/portal-config.js"></script>
-    
-    <script src="app/wux.js"></script>
-    <script src="app/app.js"></script>
-    
-    <script>
-      System.import('@dew/root-config');
-    </script>
   </body>
 </html>

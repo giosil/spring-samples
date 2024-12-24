@@ -8,6 +8,10 @@ docker exec -it appdb-postgres /bin/bash
 
 docker build -t appdb .
 
+## Run appdb image
+
+docker run --name appdb-postgres -p 5432:5432 -d appdb
+
 ## Check postgresql
 
 psql postgresql://localhost:5432/appdb -U appdb
