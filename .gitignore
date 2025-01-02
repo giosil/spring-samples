@@ -35,4 +35,5 @@ build/
 ### JTE ###
 /jte-classes/
 
-*.log
+### App logs ###
+log/
