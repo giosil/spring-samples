@@ -10,3 +10,10 @@
 - `kubectl delete -f appdb.yaml`
 - `kubectl delete -f appbe.yaml`
 
+## Check manifest
+
+- `kubectl apply -f appbe_probes.yaml --dry-run=client`
+
+or
+
+- `kubectl apply -f appbe_probes.yaml --dry-run=server`
