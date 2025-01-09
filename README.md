@@ -4,6 +4,14 @@ Spring-boot samples.
 
 ## Build frontend
 
+Before install typescrpt, uglify-js and uglifycss
+
+npm install -g typescript
+npm install -g uglify-js
+npm install -g uglifycss
+
+To build:
+
 npm run build
 
 ## Build application
