@@ -126,6 +126,12 @@ var APP;
             var _this = this;
             if (!method)
                 method = 'GET';
+            if (params) {
+                for (var k in params) {
+                    if (params[k] == null)
+                        params[k] = '';
+                }
+            }
             var search = params ? new URLSearchParams(params).toString() : "";
             var requrl = search ? this.url + "/" + entity + "?" + search : this.url + "/" + entity;
             this.before();
