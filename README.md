@@ -62,7 +62,7 @@ docker run --name appdb-postgres -p 5432:5432 -e POSTGRES_DB=appdb -e POSTGRES_U
 
 docker compose -p "app-cluster" up --detach
 
-See this [More samples](README_more.md) for more samples.
+See [more samples](README_more.md).
 
 ## Contributors
 
