@@ -96,32 +96,31 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
-	@Bean
-	public static PasswordEncoder passwordEncoder() {
-		return new BCryptPasswordEncoder();
-	}
-	
-	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-		http
-		.csrf(AbstractHttpConfigurer::disable)
-		.authorizeHttpRequests(authz -> 
-			authz
-				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-				.requestMatchers("/**").authenticated()
-				.anyRequest().authenticated()
-		)
-		.httpBasic(Customizer.withDefaults());
-		
-		return http.build();
-	}
-	
-	@Bean
-	public UserDetailsService userDetailsService() {
-		UserDetails admin = User.builder().username("admin").password(passwordEncoder().encode("password")).build();
-		UserDetails user  = User.builder().username("user").password(passwordEncoder().encode("password")).build();
-		return new InMemoryUserDetailsManager(admin, user);
-	}
+  @Bean
+  public static PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+  }
+
+  @Bean
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http
+    .csrf(AbstractHttpConfigurer::disable)
+    .authorizeHttpRequests(authz -> 
+      authz
+        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+        .requestMatchers("/**").authenticated()
+        .anyRequest().authenticated()
+    )
+    .httpBasic(Customizer.withDefaults());
+    return http.build();
+  }
+
+  @Bean
+  public UserDetailsService userDetailsService() {
+    UserDetails admin = User.builder().username("admin").password(passwordEncoder().encode("password")).build();
+    UserDetails user  = User.builder().username("user").password(passwordEncoder().encode("password")).build();
+    return new InMemoryUserDetailsManager(admin, user);
+  }
 }
 ```
 
@@ -136,6 +135,7 @@ public String getSubject() {
   if(authentication != null && authentication.isAuthenticated()) {
     return authentication.getName(); 
   }
+  return null;
 }
 ```
 
@@ -192,7 +192,9 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 public String getSubject() {
   Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+  if(authentication == null) return null;
   Jwt user = (Jwt) authentication.getPrincipal();
+  if(user == null) return null;
   return user.getSubject();
 }
 ```
