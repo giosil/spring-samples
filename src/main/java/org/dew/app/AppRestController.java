@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -94,6 +96,21 @@ public class AppRestController {
   @GetMapping("/hello")
   public ResponseEntity<String> hello() {
     String responseBody = "Hello, World!";
+    
+    MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
+    headers.add("Content-Type", "text/plain");
+    
+    return new ResponseEntity<>(responseBody, headers, HttpStatus.OK);
+  }
+  
+  @GetMapping("/private/hello")
+  public ResponseEntity<String> privateHello() {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    
+    String responseBody = "Hello, World! (Private)";
+    if(authentication != null && authentication.isAuthenticated()) {
+      responseBody = "Hello, World by " + authentication.getName() + "!";
+    }
     
     MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
     headers.add("Content-Type", "text/plain");
