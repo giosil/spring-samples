@@ -31,7 +31,7 @@ public class AuditingConfiguration {
 }
 ```
 
-To add security configuration with oauth:
+To add security configuration with Oauth2:
 
 ```xml
 <dependency>
@@ -42,35 +42,34 @@ To add security configuration with oauth:
 	<groupId>org.springframework.security</groupId>
 	<artifactId>spring-security-oauth2-resource-server</artifactId>
 </dependency>
-<dependency>
-	<groupId>org.springframework.security.oauth</groupId>
-	<artifactId>spring-security-oauth2</artifactId>
-	<version>${spring-security-oauth2}</version>
-</dependency>
-<dependency>
-	<groupId>org.springframework.security</groupId>
-	<artifactId>spring-security-oauth2-jose</artifactId>
-</dependency>
 ```
 
 ```java
-@Bean
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-  http.authorizeHttpRequests(authz -> 
-    {
-      try {
-        authz.requestMatchers("**").permitAll();
-        authz
-          .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
-          .anyRequest().authenticated().and().oauth2ResourceServer().jwt(); // deprecated
-      } 
-      catch (Exception ex) {
-        ex.printStackTrace();
-      }
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .authorizeHttpRequests(authz -> authz
+                .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> {})
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            );
+        return http.build();
     }
-  );
-  http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS); // deprecated
-  return http.build();
 }
 ```
 
