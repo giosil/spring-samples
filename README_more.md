@@ -169,6 +169,8 @@ public class CacheService {
 
 ## Security OAuth 2.0 with Filter
 
+Dependencies:
+
 ```xml
 <dependency>
 	<groupId>com.auth0</groupId>
@@ -176,6 +178,8 @@ public class CacheService {
 	<version>4.5.0</version>
 </dependency>
 ```
+
+Filter:
 
 ```java
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -235,6 +239,8 @@ public class SecurityFilter extends OncePerRequestFilter {
 }
 ```
 
+Security configuration:
+
 ```java
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -242,6 +248,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -250,23 +257,29 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-		http
-			.csrf(AbstractHttpConfigurer::disable)
-			.addFilterBefore(new SecurityFilter(), UsernamePasswordAuthenticationFilter.class)
-			.authorizeHttpRequests(authz -> authz
-				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-				.anyRequest().authenticated()
-			);
+		http.csrf(AbstractHttpConfigurer::disable)
+				.addFilterBefore(new SecurityFilter(), UsernamePasswordAuthenticationFilter.class)
+				.authorizeHttpRequests(authz -> 
+					authz
+						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+						.requestMatchers("/index.html").permitAll()
+						.anyRequest().authenticated()
+		)
+		.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)); // or ALWAYS
 		return http.build();
 	}
 }
 ```
 
+Rest controller:
+
 ```java
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -275,7 +288,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class DemoRestController {
-	
 	Logger logger = LoggerFactory.getLogger(DemoRestController.class);
 	
 	@GetMapping("/hello")
@@ -284,6 +296,12 @@ public class DemoRestController {
 		if(name == null || name.length() == 0) {
 			throw new Exception("Invalid name");
 		}
+		
+		// Alternatively:
+		// 
+		// Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		// String subjectName = authentication.getName();
+		
 		String result = null;
 		if(userDetails != null) {
 			result = "Hello " + name + " from " + userDetails.getUsername() + "!";
