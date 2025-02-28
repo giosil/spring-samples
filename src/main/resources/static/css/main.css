@@ -1,31 +1,28 @@
-.modal .modal-dialog .modal-content .modal-header .close {padding: 16px;}
-.modal-header .close {padding: 1.5rem;margin: -1rem -1rem -1rem auto;}
-button.close {padding: 0;background-color: transparent;border: 0;}
-.close {float: right;font-size: 1.5rem;font-weight: 700;line-height: 1;color: hsl(0deg, 0%, 0%);text-shadow: 0 1px 0 hsl(0deg, 0%, 100%);opacity: 0.5;}
+.modal-fullscreen{height:97%;margin:1rem 0 0 0 !important;}
+.toggles label input[type=checkbox]+.lever{margin: 1rem -2.5rem 0 0;}
 
-.form-row{display:flex;flex-wrap:wrap;padding:1rem;}
-.justify-content-end{justify-content:flex-end !important;}
-input:read-only {background-color: #eeeeee;}
+input:read-only{background-color:#f1f1f1;}
+.form-control:disabled{background-color:#f1f1f1;}
 
 .breadcrumb-container{margin-top: 20px !important;padding-left: 0 !important;}
-.breadcrumb-container .breadcrumb {padding: 0.5em 0;border-radius: 0;}
-.breadcrumb-container .breadcrumb .breadcrumb-item {padding-left: 0;}
-.breadcrumb-container .breadcrumb .breadcrumb-item + .breadcrumb-item:before {display: none;}
-.breadcrumb-container .breadcrumb .breadcrumb-item i {padding-right: 0.5em;}
-.breadcrumb-container .breadcrumb .breadcrumb-item span.separator {display: inline-block;padding: 0 0.5em;}
-.breadcrumb {display: flex;flex-wrap: wrap;padding: 0.75rem 1rem;margin-bottom: 1rem;list-style: none;background-color: transparent;border-radius: 0;}
+.breadcrumb-container .breadcrumb{padding: 0.5em 0;border-radius: 0;}
+.breadcrumb-container .breadcrumb .breadcrumb-item{padding-left: 0;}
+.breadcrumb-container .breadcrumb .breadcrumb-item + .breadcrumb-item:before{display: none;}
+.breadcrumb-container .breadcrumb .breadcrumb-item i{padding-right: 0.5em;}
+.breadcrumb-container .breadcrumb .breadcrumb-item span.separator{display: inline-block;padding: 0 0.5em;}
+.breadcrumb {display:flex;flex-wrap:wrap;padding:0.75rem 1rem;margin-bottom:1rem;list-style:none;background-color:transparent;border-radius:0;}
 .breadcrumb-item + .breadcrumb-item {padding-left: 0.5rem;}
-.breadcrumb-item + .breadcrumb-item::before {float: left;padding-right: 0.5rem; content: "/";}
+.breadcrumb-item + .breadcrumb-item::before{float: left;padding-right: 0.5rem; content: "/";}
 ol.breadcrumb li a{color:#000 !important}
 ol.breadcrumb li:last-child a{cursor:default;pointer-events:none;text-decoration:none !important}
 
-.icon {width: 32px;height: 32px;vertical-align: middle;}
-svg {overflow: hidden;vertical-align: middle;}
+.icon {width:32px;height:32px;vertical-align:middle;}
+svg {overflow:hidden;vertical-align:middle;}
 svg.icon image{width:inherit;}
 
 .notification{width:100%;padding:1.5rem;padding-right:4rem;box-shadow:0 -0.5rem 1rem rgba(0,0,0,0.15);background:hsl(0deg,0%,100%);position:fixed;bottom:0;right:0;display:none;border-top:4px solid hsl(210deg,16.9590643275%,43.605%);}
-.notification h5{font-size:0.938rem;text-transform:uppercase;color:hsl(210deg,53.8461538462%,19.5%);letter-spacing:0;margin:0;position:relative;line-height:1em;font-weight:700;}
-.notification p{font-size:0.875rem;margin:1.5rem 0 0 0;color:hsl(210deg,16.9590643275%,43.605%);}
+.notification h5{text-transform:uppercase;color:hsl(210deg,53.8461538462%,19.5%);letter-spacing:0;margin:0;position:relative;line-height:1em;font-weight:700;}
+.notification p{margin:1.5rem 0 0 0;color:hsl(210deg,16.9590643275%,43.605%);}
 .notification.with-icon{border-top:4px solid hsl(210deg,16.9590643275%,43.605%);}
 .notification.with-icon h5 .icon{position:absolute;top:-8px;left:-38px;}
 .notification.with-icon h5,.notification.with-icon p{margin-left:2rem;}
@@ -54,9 +51,10 @@ svg.icon image{width:inherit;}
 #notification-center{position:fixed;right:0;bottom:0;}
 #notification-center .notification{position:relative;}
 #notification-center{z-index:99999999;}
-
-header{padding: 1rem 2rem 0rem 2rem;}
-#nav1-items{padding: 0.5rem 2rem 0.5rem 2rem;}
-
-.waitpls{display:none;position:fixed;z-index:1000;top:0;left:0;height:100%;width:100%;background:rgba(255,255,255,.8) url('../images/wait.gif') 50% 50% no-repeat;}
+/* devextreme */
+.dx-texteditor-container input{height:2.2rem;font-weight:normal;border-bottom:none;}
+.dx-widget{font-size:14px;}
+.actions a.btn-xs{padding:2px 4px 2px 4px;color:#333;}
+/* app */
+.waitpls{display:none;position:fixed;z-index:2000;top:0;left:0;height:100%;width:100%;background:rgba(255,255,255,.8) url('../images/wait.gif') 50% 50% no-repeat;}
 body.loading .waitpls{overflow:hidden;display:block;}
