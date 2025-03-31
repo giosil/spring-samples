@@ -314,3 +314,30 @@ public class DemoRestController {
 	}
 }
 ```
+
+## Client rest
+
+Dependency:
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-webflux</artifactId>
+</dependency>
+```
+
+WebClient:
+
+```java
+WebClient webClient = WebClient.builder().baseUrl("http://localhost:8081/api").build();
+
+UserDTO userDTO = webClient
+    .get()
+    .uri(uriBuilder -> uriBuilder
+      .path("/users/read")
+      .queryParam("user", subject) 
+      .build())
+    .retrieve()
+    .bodyToMono(UserDTO.class)
+    .block();
+```
