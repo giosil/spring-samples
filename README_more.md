@@ -341,4 +341,10 @@ UserDTO userDTO = webClient
   .bodyToMono(UserDTO.class)
   .timeout(Duration.ofSeconds(20))
   .block();
+
+// UserDTO to JSON
+
+ObjectMapper objectMapper = new ObjectMapper();
+String json = objectMapper.writeValueAsString(userDTO);
+System.out.println(json);
 ```
