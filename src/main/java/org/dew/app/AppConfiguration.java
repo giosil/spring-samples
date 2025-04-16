@@ -49,7 +49,7 @@ public class AppConfiguration {
     Map<String, Object> properties = new HashMap<String, Object>();
     properties.put("hibernate.dialect", getHibernateDialect());
     
-    if(!isProdProfile()) {
+    if(!isReleaseProfile()) {
       properties.put("hibernate.show_sql",         "true");
       properties.put("hibernate.format_sql",       "true");
       properties.put("hibernate.use_sql_comments", "true");
@@ -88,7 +88,7 @@ public class AppConfiguration {
     return value;
   }
   
-  protected boolean isProdProfile() {
+  protected boolean isReleaseProfile() {
     if(environment == null) {
       return false;
     }
@@ -98,7 +98,7 @@ public class AppConfiguration {
     }
     for(int i = 0; i < activeProfiles.length; i++) {
       String profile = activeProfiles[i];
-      if("prod".equals(profile)) return true;
+      if("release".equals(profile)) return true;
     }
     return false;
   }
