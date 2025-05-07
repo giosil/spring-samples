@@ -161,83 +161,6 @@ public String getSubject() {
 }
 ```
 
-## Redis Cache Service
-
-```xml
-<dependency>
-  <groupId>io.lettuce</groupId>
-  <artifactId>lettuce-core</artifactId>
-</dependency>
-```
-
-```java
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Service;
-
-import io.lettuce.core.ReadFrom;
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.api.sync.RedisCommands;
-import io.lettuce.core.cluster.ClusterClientOptions;
-import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
-import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.masterreplica.MasterReplica;
-import io.lettuce.core.masterreplica.StatefulRedisMasterReplicaConnection;
-import io.lettuce.core.resource.ClientResources;
-import io.lettuce.core.resource.DefaultClientResources;
-
-@Service
-public class CacheService {
-  private ClientResources sharedResources = DefaultClientResources.create();
-
-  private final StatefulRedisMasterReplicaConnection<String, String> connection;
-  private final RedisClient redisClient;
-
-  public CacheService(Environment environment) {
-    redisClient = RedisClient.create(sharedResources);
-    redisClient.setOptions(ClusterClientOptions.builder()
-      .topologyRefreshOptions(
-        ClusterTopologyRefreshOptions.builder()
-          .enablePeriodicRefresh(Duration.of(5, ChronoUnit.MINUTES))
-          .dynamicRefreshSources(true)
-          .build()
-      ).build());
-    connection = MasterReplica.connect(redisClient, StringCodec.UTF8, RedisURI.create(environment.getProperty("application.redis-uri")));
-    connection.setReadFrom(ReadFrom.REPLICA_PREFERRED);
-  }
-
-  public String get(String key) {
-    try {
-      return connection.sync().get(key);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return null;
-    }
-  }
-
-  public void put(String key, String value) {
-    try {
-      connection.sync().set(key, value);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-    }
-  }
-
-  public void put(String key, String value, long expiresIn) {
-    try {
-      RedisCommands<String, String> sync = connection.sync();
-      sync.set(key, value);
-      sync.expire(key, expiresIn);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-    }
-  }
-}
-```
-
 ## Security OAuth 2.0 with Filter
 
 Dependencies:
@@ -268,10 +191,15 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.sql.DataSource;
 
@@ -282,6 +210,13 @@ public class SecurityFilter extends OncePerRequestFilter {
   
   private final DataSource dataSource;
   
+  private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
+  private final static int CACHE_EXPIRE_AFTER = 300000;
+  private final static int CACHE_CLEAN_AFTER  = 200;
+  
+  private final static String      DEFAULT_ROLE = "EMPLOYEE";
+  private final static UserDetails DEFAULT_USER = User.withUsername("guest").password("").roles(DEFAULT_ROLE).build();
+  
   public SecurityFilter(DataSource dataSource) {
     this.dataSource = dataSource;
   }
@@ -289,15 +224,47 @@ public class SecurityFilter extends OncePerRequestFilter {
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
+    // Check cache
+    long now = System.currentTimeMillis();
+    if(cache.size() > CACHE_CLEAN_AFTER) {
+      // Clean cache
+      cache.entrySet().removeIf(entry -> entry.getValue().expiryTime < now);
+    }
+    
+    UserDetails userDetails = null;
+    
     // Authentication
     String subject = getSubject(request);
-    if(subject == null || subject.length() == 0) subject = "guest";
-    String role = getRole(subject);
+    if(subject == null || subject.length() == 0) {
+      // Generally in OPTIONS method calls
+      userDetails = DEFAULT_USER;
+    }
+    else {
+      // Get or build  userDetails
+      CacheEntry cacheEntry = cache.get(subject);
+      if(cacheEntry != null && cacheEntry.expiryTime > now) {
+        // Valid cache entry
+        userDetails = cacheEntry.userDetails;
+      }
+      else {
+        String[] roles = getRoles(subject);
+        userDetails = User.withUsername(subject).password("").roles(roles).build();
+        if(cacheEntry != null) {
+          // Update cache entry
+          cacheEntry.setUserDetails(userDetails);
+        }
+        else {
+          // Put new cache entry
+          cache.put(subject, new CacheEntry(userDetails));
+        }
+      }
+    }
     
-    // Create user and set context
-    UserDetails userDetails = User.withUsername(subject).password("").roles(role).build();
+    // Create spring authentication token
     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+    
+    // Update security context
     SecurityContextHolder.getContext().setAuthentication(authentication);
     
     filterChain.doFilter(request, response);
@@ -306,41 +273,47 @@ public class SecurityFilter extends OncePerRequestFilter {
     insLog(subject, request, response);
   }
   
-  protected String getRole(String subject) {
-    if(subject == null || subject.length() != 16) {
-      return "default";
+  protected String[] getRoles(String subject) {
+    if(subject == null || subject.length() == 0) {
+      return new String[] { DEFAULT_ROLE };
     }
-    String result = null;
+    Date currentDate = new Date(System.currentTimeMillis());
+    List<String> roles = new ArrayList<String>();
     Connection conn = null;
     PreparedStatement pstm = null;
     ResultSet rs = null;
     try {
       conn = dataSource.getConnection();
-      pstm = conn.prepareStatement("SELECT ROLE FROM USERS WHERE SUBJECT=?");
+      pstm = conn.prepareStatement("SELECT ROLE FROM USERS WHERE SUBJECT=? AND START_VALIDITY<=? AND END_VALIDITY>?");
       pstm.setString(1, subject.toUpperCase());
+      pstm.setDate(2, currentDate);
+      pstm.setDate(3, currentDate);
       rs = pstm.executeQuery();
-      if(rs.next()) result = rs.getString("ROLE");
+      while(rs.next()) {
+        String role = rs.getString("ROLE");
+        if(!roles.contains(role)) roles.add(role);
+      }
     }
     catch(SQLException sqlex) {
-      System.err.println("Exception in SecurityFilter.getRole(" + subject + "): " + sqlex);
+      System.err.println("[SecurityFilter] exception in getRoles(" + subject + "): " + sqlex);
     }
     finally {
-      if(rs   != null) try { rs.close();   } catch(SQLException sqlex) {}
-      if(pstm != null) try { pstm.close(); } catch(SQLException sqlex) {}
-      if(conn != null) try { conn.close(); } catch(SQLException sqlex) {}
+      if(rs   != null) try { rs.close();   } catch(SQLException sqlex) { sqlex.printStackTrace(); }
+      if(pstm != null) try { pstm.close(); } catch(SQLException sqlex) { sqlex.printStackTrace(); }
+      if(conn != null) try { conn.close(); } catch(SQLException sqlex) { sqlex.printStackTrace(); }
     }
-    if(result == null || result.length() == 0) {
-      result = "default";
+    if(roles.size() == 0) {
+      return new String[] { DEFAULT_ROLE };
     }
-    return result;
+    return roles.stream().toArray(String[]::new);
   }
   
   protected void insLog(String subject, HttpServletRequest request, HttpServletResponse response) {
-    if(subject == null || subject.length() != 16) {
+    if(subject == null || subject.length() == 0) {
       return;
     }
     String method = request.getMethod();
-    if("GET".equals(method)) return;
+    if("GET".equals(method) || "OPTIONS".equals(method)) return;
     String path   = request.getServletPath();
     String params = request.getQueryString();
     
@@ -357,7 +330,7 @@ public class SecurityFilter extends OncePerRequestFilter {
     PreparedStatement pstm = null;
     try {
       conn = dataSource.getConnection();
-      pstm = conn.prepareStatement("INSERT INTO LOG_AUDIT(SUBJECT,LOG_DATETIME,LOG_METHOD,LOG_PATH,LOG_PARAMS) VALUES(?,?,?,?,?)");
+      pstm = conn.prepareStatement("INSERT INTO LOG_AUDIT(SUBJECT,LOG_DATE,LOG_METHOD,LOG_PATH,LOG_PARAMS) VALUES(?,?,?,?,?)");
       pstm.setString(1,    subject.toUpperCase());
       pstm.setTimestamp(2, new java.sql.Timestamp(System.currentTimeMillis()));
       pstm.setString(3,    method);
@@ -366,11 +339,11 @@ public class SecurityFilter extends OncePerRequestFilter {
       pstm.executeUpdate();
     }
     catch(SQLException sqlex) {
-      System.err.println("Exception in SecurityFilter.insLog " + subject + "," + method + "," + path + "," + params + ": " + sqlex);
+      System.err.println("[SecurityFilter] exception in insLog(" + subject + "): " + sqlex);
     }
     finally {
-      if(pstm != null) try { pstm.close(); } catch(SQLException sqlex) {}
-      if(conn != null) try { conn.close(); } catch(SQLException sqlex) {}
+      if(pstm != null) try { pstm.close(); } catch(SQLException sqlex) { sqlex.printStackTrace(); }
+      if(conn != null) try { conn.close(); } catch(SQLException sqlex) { sqlex.printStackTrace(); }
     }
   }
   
@@ -406,6 +379,21 @@ public class SecurityFilter extends OncePerRequestFilter {
       }
     }
     return null;
+  }
+  
+  private static class CacheEntry {
+    UserDetails userDetails;
+    long expiryTime;
+
+    public CacheEntry(UserDetails userDetails) {
+      this.userDetails = userDetails;
+      this.expiryTime  = System.currentTimeMillis() + CACHE_EXPIRE_AFTER;
+    }
+    
+    public void setUserDetails(UserDetails userDetails) {
+      this.userDetails = userDetails;
+      this.expiryTime  = System.currentTimeMillis() + CACHE_EXPIRE_AFTER;
+    }
   }
 }
 ```
@@ -496,7 +484,84 @@ public class DemoRestController {
 }
 ```
 
-## Client rest
+## Redis Cache Service
+
+```xml
+<dependency>
+  <groupId>io.lettuce</groupId>
+  <artifactId>lettuce-core</artifactId>
+</dependency>
+```
+
+```java
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Service;
+
+import io.lettuce.core.ReadFrom;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.cluster.ClusterClientOptions;
+import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
+import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.masterreplica.MasterReplica;
+import io.lettuce.core.masterreplica.StatefulRedisMasterReplicaConnection;
+import io.lettuce.core.resource.ClientResources;
+import io.lettuce.core.resource.DefaultClientResources;
+
+@Service
+public class CacheService {
+  private ClientResources sharedResources = DefaultClientResources.create();
+
+  private final StatefulRedisMasterReplicaConnection<String, String> connection;
+  private final RedisClient redisClient;
+
+  public CacheService(Environment environment) {
+    redisClient = RedisClient.create(sharedResources);
+    redisClient.setOptions(ClusterClientOptions.builder()
+      .topologyRefreshOptions(
+        ClusterTopologyRefreshOptions.builder()
+          .enablePeriodicRefresh(Duration.of(5, ChronoUnit.MINUTES))
+          .dynamicRefreshSources(true)
+          .build()
+      ).build());
+    connection = MasterReplica.connect(redisClient, StringCodec.UTF8, RedisURI.create(environment.getProperty("application.redis-uri")));
+    connection.setReadFrom(ReadFrom.REPLICA_PREFERRED);
+  }
+
+  public String get(String key) {
+    try {
+      return connection.sync().get(key);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return null;
+    }
+  }
+
+  public void put(String key, String value) {
+    try {
+      connection.sync().set(key, value);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+  }
+
+  public void put(String key, String value, long expiresIn) {
+    try {
+      RedisCommands<String, String> sync = connection.sync();
+      sync.set(key, value);
+      sync.expire(key, expiresIn);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+  }
+}
+```
+
+## Client rest in backend
 
 Dependency:
 
