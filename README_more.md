@@ -217,6 +217,8 @@ public class SecurityFilter extends OncePerRequestFilter {
   private final static String      DEFAULT_ROLE = "EMPLOYEE";
   private final static UserDetails DEFAULT_USER = User.withUsername("guest").password("").roles(DEFAULT_ROLE).build();
   
+  private final static String REQ_PROC_FAILED = "Request processing failed:";
+  
   public SecurityFilter(DataSource dataSource) {
     this.dataSource = dataSource;
   }
@@ -229,6 +231,15 @@ public class SecurityFilter extends OncePerRequestFilter {
     if(cache.size() > CACHE_CLEAN_AFTER) {
       // Clean cache
       cache.entrySet().removeIf(entry -> entry.getValue().expiryTime < now);
+    }
+    
+    // Invalidate cache at findUserSecurity
+    String path = request.getServletPath();
+    if(path != null && path.endsWith("/findUserSecurity")) {
+      String sub = request.getParameter("cf");
+      if(sub != null && sub.length() > 0) {
+        cache.remove(sub);
+      }
     }
     
     UserDetails userDetails = null;
@@ -267,10 +278,59 @@ public class SecurityFilter extends OncePerRequestFilter {
     // Update security context
     SecurityContextHolder.getContext().setAuthentication(authentication);
     
-    filterChain.doFilter(request, response);
+    try {
+      filterChain.doFilter(request, response);
+    }
+    catch(Exception ex) {
+      String jsonErrorBody = errorBody(request, ex);
+      if(jsonErrorBody == null || jsonErrorBody.length() < 2) jsonErrorBody = "{}";
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      response.setContentType("application/json");
+      response.setContentLength(jsonErrorBody.length());
+      response.getWriter().write(jsonErrorBody);
+    }
     
     // Audit (Trace)
     insLog(subject, request, response);
+  }
+  
+  protected String errorBody(HttpServletRequest request, Exception ex) {
+    LocalDate today  = LocalDate.now();
+    String timestamp = today.format(HCMUtils.DATE_FORMATTER_ALT);
+    String trace     = null;
+    String message   = null;
+    if(ex != null) {
+      trace = ex.getMessage();
+      if(trace != null) {
+        if(trace.startsWith(REQ_PROC_FAILED) && trace.length() > REQ_PROC_FAILED.length() + 1) {
+          trace = trace.substring(REQ_PROC_FAILED.length() + 1);
+        }
+        int sep = trace.indexOf(':');
+        message = sep > 0 ? message = trace.substring(sep + 1) : trace;
+      }
+    }
+    if(trace == null || trace.length() == 0) {
+      trace   = HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase();
+      message = HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase();
+    }
+    Map<String, Object> map = new HashMap<String, Object>();
+    map.put("timestamp", timestamp);
+    map.put("status",    HttpStatus.INTERNAL_SERVER_ERROR.value());
+    map.put("error",     HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase());
+    map.put("trace",     trace);
+    map.put("message",   message);
+    map.put("path",      request.getServletPath());
+    
+    ObjectMapper objectMapper = new ObjectMapper();
+    try {
+      String json = objectMapper.writeValueAsString(map);
+      System.out.println(json);
+      return json;
+    }
+    catch(Exception exom) {
+      exom.printStackTrace();
+    }
+    return null;
   }
   
   protected String[] getRoles(String subject) {
