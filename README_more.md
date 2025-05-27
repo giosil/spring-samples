@@ -176,35 +176,41 @@ Dependencies:
 Filter:
 
 ```java
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-
-import org.springframework.web.filter.OncePerRequestFilter;
-
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.sql.DataSource;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingRequestWrapper;
+
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 public class SecurityFilter extends OncePerRequestFilter {
   
@@ -214,7 +220,7 @@ public class SecurityFilter extends OncePerRequestFilter {
   private final static int CACHE_EXPIRE_AFTER = 300000;
   private final static int CACHE_CLEAN_AFTER  = 200;
   
-  private final static String      DEFAULT_ROLE = "EMPLOYEE";
+  private final static String      DEFAULT_ROLE = "guest";
   private final static UserDetails DEFAULT_USER = User.withUsername("guest").password("").roles(DEFAULT_ROLE).build();
   
   private final static String REQ_PROC_FAILED = "Request processing failed:";
@@ -278,10 +284,17 @@ public class SecurityFilter extends OncePerRequestFilter {
     // Update security context
     SecurityContextHolder.getContext().setAuthentication(authentication);
     
+    ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
+    
+    String exceptionMessage = null;
     try {
-      filterChain.doFilter(request, response);
+      filterChain.doFilter(wrappedRequest, response);
     }
     catch(Exception ex) {
+      exceptionMessage = ex.getMessage();
+      if(exceptionMessage == null || exceptionMessage.length() == 0) {
+        exceptionMessage = ex.toString();
+      }
       String jsonErrorBody = errorBody(request, ex);
       if(jsonErrorBody == null || jsonErrorBody.length() < 2) jsonErrorBody = "{}";
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -291,12 +304,12 @@ public class SecurityFilter extends OncePerRequestFilter {
     }
     
     // Audit (Trace)
-    insLog(subject, request, response);
+    insLog(subject, wrappedRequest, response, exceptionMessage);
   }
   
   protected String errorBody(HttpServletRequest request, Exception ex) {
     LocalDate today  = LocalDate.now();
-    String timestamp = today.format(HCMUtils.DATE_FORMATTER_ALT);
+    String timestamp = today.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
     String trace     = null;
     String message   = null;
     if(ex != null) {
@@ -334,7 +347,7 @@ public class SecurityFilter extends OncePerRequestFilter {
   }
   
   protected String[] getRoles(String subject) {
-    if(subject == null || subject.length() == 0) {
+    if(subject == null || subject.length() != 16) {
       return new String[] { DEFAULT_ROLE };
     }
     Date currentDate = new Date(System.currentTimeMillis());
@@ -350,7 +363,7 @@ public class SecurityFilter extends OncePerRequestFilter {
       pstm.setDate(3, currentDate);
       rs = pstm.executeQuery();
       while(rs.next()) {
-        String role = rs.getString("ROLE");
+        String role = rs.getString("RUOLO");
         if(!roles.contains(role)) roles.add(role);
       }
     }
@@ -368,34 +381,46 @@ public class SecurityFilter extends OncePerRequestFilter {
     return roles.stream().toArray(String[]::new);
   }
   
-  protected void insLog(String subject, HttpServletRequest request, HttpServletResponse response) {
-    if(subject == null || subject.length() == 0) {
+  protected void insLog(String subject, ContentCachingRequestWrapper wrappedRequest, HttpServletResponse response, String exceptionMessage) {
+    if(subject == null || subject.length() != 16) {
       return;
     }
-    String method = request.getMethod();
+    String method = wrappedRequest.getMethod();
     if("GET".equals(method) || "OPTIONS".equals(method)) return;
-    String path   = request.getServletPath();
-    String params = request.getQueryString();
+    String path   = wrappedRequest.getServletPath();
+    String params = wrappedRequest.getQueryString();
+    if(params == null || params.length() == 0) {
+      params = getRequestBody(wrappedRequest);
+    }
     
     if(path    == null) path    = "/";
     if(params  == null) params  = "";
-    if(subject.length() > 16)  subject = subject.substring(0, 16).toUpperCase();
-    if(path.length()    > 250) path    = path.substring(0, 250);
-    if(params.length()  > 250) params  = params.substring(0, 250);
+    if(subject.length() > 16)   subject = subject.substring(0, 16).toUpperCase();
+    if(path.length()    > 250)  path    = path.substring(0, 250);
+    if(params.length()  > 2000) params  = params.substring(0, 2000) + "...";
     
+    String logError = "";
     int status = response.getStatus();
-    if(status >= 400) method = method + "*";
+    if(status >= 400) {
+      logError = "[" + status + "]";
+    }
+    if(exceptionMessage != null) {
+      if(logError.length() > 0) logError += " ";
+      logError += exceptionMessage;
+    }
+    if(logError.length() > 145) logError = logError.substring(0, 145);
     
     Connection conn = null;
     PreparedStatement pstm = null;
     try {
       conn = dataSource.getConnection();
-      pstm = conn.prepareStatement("INSERT INTO LOG_AUDIT(SUBJECT,LOG_DATE,LOG_METHOD,LOG_PATH,LOG_PARAMS) VALUES(?,?,?,?,?)");
+      pstm = conn.prepareStatement("INSERT INTO LOG_AUDIT(SUBJECT,LOG_DATE,LOG_METHOD,LOG_PATH,LOG_PARAMS,LOG_ERROR) VALUES(?,?,?,?,?,?)");
       pstm.setString(1,    subject.toUpperCase());
       pstm.setTimestamp(2, new java.sql.Timestamp(System.currentTimeMillis()));
       pstm.setString(3,    method);
       pstm.setString(4,    path);
       pstm.setString(5,    params);
+      pstm.setString(6,    logError);
       pstm.executeUpdate();
     }
     catch(SQLException sqlex) {
@@ -441,10 +466,23 @@ public class SecurityFilter extends OncePerRequestFilter {
     return null;
   }
   
+  protected String getRequestBody(ContentCachingRequestWrapper request) {
+    byte[] content = request.getContentAsByteArray();
+    if (content != null && content.length > 0) {
+      try {
+        return new String(content, 0, content.length, request.getCharacterEncoding());
+      } 
+      catch (UnsupportedEncodingException e) {
+        return new String(content);
+      }
+    }
+    return "";
+  }
+  
   private static class CacheEntry {
     UserDetails userDetails;
     long expiryTime;
-
+    
     public CacheEntry(UserDetails userDetails) {
       this.userDetails = userDetails;
       this.expiryTime  = System.currentTimeMillis() + CACHE_EXPIRE_AFTER;
