@@ -55,6 +55,11 @@ public class AppConfiguration {
       properties.put("hibernate.use_sql_comments", "true");
     }
     // properties.put("hibernate.hbm2ddl.auto",     "update");
+
+    // Configurazione per disabilitare la creazione delle tabelle temporanee con prefisso HTE_ di Hibernate
+    properties.put("hibernate.query.mutation_strategy", "org.hibernate.query.sqm.mutation.internal.inline.InlineMutationStrategy");
+    properties.put("hibernate.query.mutation_strategy.global_temporary.create_tables", "false");
+    properties.put("hibernate.query.mutation_strategy.global_temporary.drop_tables",   "false");
     
     em.setJpaPropertyMap(properties);
     
