@@ -132,10 +132,10 @@ public class IAM {
   public static final String IAM_POST_LOGOUT   = "IAM_POST_LOGOUT";
   public static final String IAM_SCOPE         = "IAM_SCOPE";
   // Defaults
-  public static final String DEF_URL_AUTHORIZE = "https://qiam.regione.lazio.it/oauth2/authorize";
-  public static final String DEF_URL_TOKEN     = "https://qiam.regione.lazio.it/oauth2/token";
-  public static final String DEF_URL_LOGOUT    = "https://qiam.regione.lazio.it/oidc/logout";
-  public static final String DEF_CLIENT_ID     = "CQubLwPty8tJ3RqTpEj6QiAsp9Qa";
+  public static final String DEF_URL_AUTHORIZE = "";
+  public static final String DEF_URL_TOKEN     = "";
+  public static final String DEF_URL_LOGOUT    = "";
+  public static final String DEF_CLIENT_ID     = "";
   public static final String DEF_REDIRECT_URI  = "http://localhost:8080/iam";
   public static final String DEF_POST_LOGOUT   = "http://localhost:8080/logout";
   
