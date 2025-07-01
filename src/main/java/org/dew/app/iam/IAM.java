@@ -21,18 +21,15 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 // Check Session
 HttpSession session = request.getSession();
-
-String sessionUser = (String) session.getAttribute(HcmPortalController.SESS_USER);
-
-// [IAM]
+String sessionUser = (String) session.getAttribute(SESS_USER);
 if(sessionUser == null || sessionUser.length() == 0) {
   String servletPath = request.getServletPath();
   // Check last authorize request (to avoid the loop)
-  String lastAuthorizeRequest = (String) session.getAttribute(HcmPortalController.SESS_AUTH);
+  String lastAuthorizeRequest = (String) session.getAttribute(SESS_AUTH);
   if(lastAuthorizeRequest == null || lastAuthorizeRequest.length() == 0) {
     String location = IAM.getAuthorizeRequest(servletPath);
     if(location != null && location.length() > 0) {
-      session.setAttribute(HcmPortalController.SESS_AUTH, location);
+      session.setAttribute(SESS_AUTH, location);
       
       response.setHeader("Location", location);
       response.sendError(302);
@@ -43,7 +40,6 @@ if(sessionUser == null || sessionUser.length() == 0) {
 
 // Controller:
 
-// [IAM]
 @GetMapping("/iam")
 public String iam(
     @RequestParam(name = "code",              required = false) String code,
@@ -51,45 +47,31 @@ public String iam(
     @RequestParam(name = "session_state",     required = false) String session_state,
     @RequestParam(name = "error",             required = false) String error,
     @RequestParam(name = "error_description", required = false) String error_description,
-    Model model, 
-    HttpServletRequest request) {
+    Model model, HttpServletRequest request) {
   
   String token = IAM.requestToken(code, state);
-  
   if(token != null && token.length() > 0) {
     String subject = IAM.getSubject(token);
-    
     if(subject != null && subject.length() > 0) {
-      UserDTO userDTO = HCM.findUserSecurity(subject);
-      
       HttpSession session = request.getSession();
       session.setAttribute(SESS_USER,  subject);
       session.setAttribute(SESS_TOKEN, token);
-      if(userDTO != null) {
-        session.setAttribute(SESS_UDTO, userDTO);
-      }
-      
       String servletPath = IAM.getServletPath(state);
       if(servletPath != null && servletPath.length() > 0 && servletPath.startsWith("/")) {
         return "redirect:" + servletPath;
       }
     }
   }
-  
   return "home";
 }
 
-// [IAM]
 @GetMapping("/logout")
 public String logout(Model model, HttpServletRequest request) {
-  
   HttpSession session = request.getSession();
-  
   session.removeAttribute(SESS_USER);
   session.removeAttribute(SESS_TOKEN);
   session.removeAttribute(SESS_UDTO);
   session.removeAttribute(SESS_AUTH);
-  
   return "home";
 }
 */
