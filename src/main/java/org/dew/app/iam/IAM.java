@@ -13,7 +13,9 @@ import java.util.Map;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+
 import org.springframework.web.reactive.function.client.WebClient;
 
 /*
@@ -126,6 +128,7 @@ public class IAM {
   // IAM Configuration
   public static final String IAM_URL_AUTHORIZE = "IAM_URL_AUTHORIZE";
   public static final String IAM_URL_TOKEN     = "IAM_URL_TOKEN";
+  public static final String IAM_URL_USERINFO  = "IAM_URL_USERINFO";
   public static final String IAM_URL_LOGOUT    = "IAM_URL_LOGOUT";
   public static final String IAM_CLIENT_ID     = "IAM_CLIENT_ID";
   public static final String IAM_REDIRECT_URI  = "IAM_REDIRECT_URI";
@@ -134,6 +137,7 @@ public class IAM {
   // Defaults
   public static final String DEF_URL_AUTHORIZE = "";
   public static final String DEF_URL_TOKEN     = "";
+  public static final String DEF_URL_USERINFO  = "";
   public static final String DEF_URL_LOGOUT    = "";
   public static final String DEF_CLIENT_ID     = "";
   public static final String DEF_REDIRECT_URI  = "http://localhost:8080/iam";
@@ -331,6 +335,56 @@ public class IAM {
       return null;
     }
     System.out.println("IAM.requestToken(" + code + "," + state + ") -> " + response);
+    return response;
+  }
+  
+  public static IAMUserInfo getUserInfo(String token) {
+    if(token == null || token.length() == 0) {
+      System.out.println("IAM.getUserInfo(" + token + ") -> null (invalid token)");
+      return null;
+    }
+    String iamURLUserInfo = System.getenv(IAM_URL_USERINFO);
+    if(iamURLUserInfo == null || iamURLUserInfo.length() == 0) {
+      iamURLUserInfo = DEF_URL_USERINFO;
+    }
+    if(iamURLUserInfo == null || iamURLUserInfo.length() < 8) {
+      System.out.println("IAM.getUserInfo(" + token + ") -> null (" + IAM_URL_USERINFO + "=" + iamURLUserInfo + ")");
+      return null;
+    }
+    String baseUrl = null;
+    String postUri = null;
+    int lastSep = iamURLUserInfo.lastIndexOf('/');
+    if(lastSep > 0) {
+      baseUrl = iamURLUserInfo.substring(0, lastSep);
+      postUri = iamURLUserInfo.substring(lastSep);
+    }
+    else {
+      baseUrl = iamURLUserInfo;
+      postUri = "/";
+    }
+    
+    IAMUserInfo response = null;
+    try {
+      WebClient webClient = WebClient.builder().baseUrl(baseUrl).build();
+      
+      response = webClient
+        .get()
+        .uri(postUri)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .retrieve()
+        .bodyToMono(IAMUserInfo.class)
+        .timeout(Duration.ofSeconds(20))
+        .block();
+    }
+    catch(Exception ex) {
+      ex.printStackTrace();
+    }
+    System.out.println("GET " + iamURLUserInfo + " -> " + response);
+    if(response == null) {
+      System.out.println("IAM.getUserInfo(" + token + ") -> null (response is null)");
+      return null;
+    }
+    System.out.println("IAM.getUserInfo(" + token + ") -> " + response);
     return response;
   }
   
