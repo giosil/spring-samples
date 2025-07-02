@@ -160,7 +160,7 @@ public class IAM {
     if(iamClientId == null || iamClientId.length() == 0) {
       iamClientId = DEF_CLIENT_ID;
     }
-    if(iamClientId == null || iamClientId.length() == 0) {
+    if(iamClientId == null || iamClientId.length() < 3) {
       System.out.println("IAM.getAuthorizeRequest(" + path + ") -> null (" + IAM_CLIENT_ID + "=" + iamClientId + ")");
       return null;
     }
@@ -232,7 +232,7 @@ public class IAM {
     if(iamClientId == null || iamClientId.length() == 0) {
       iamClientId = DEF_CLIENT_ID;
     }
-    if(iamClientId == null || iamClientId.length() == 0) {
+    if(iamClientId == null || iamClientId.length() < 3) {
       System.out.println("IAM.getLogoutURL(" + idToken + "," + state + ") -> null (" + IAM_CLIENT_ID + "=" + iamClientId + ")");
       return null;
     }
@@ -278,6 +278,10 @@ public class IAM {
     String iamClientId = System.getenv(IAM_CLIENT_ID);
     if(iamClientId == null || iamClientId.length() == 0) {
       iamClientId = DEF_CLIENT_ID;
+    }
+    if(iamClientId == null || iamClientId.length() < 3) {
+      System.out.println("IAM.requestToken(" + code + "," + state + ") -> null (IAM_CLIENT_ID=" + iamClientId + ")");
+      return null;
     }
     String iamRedirectURI = System.getenv(IAM_REDIRECT_URI);
     if(iamRedirectURI == null || iamRedirectURI.length() == 0) {
