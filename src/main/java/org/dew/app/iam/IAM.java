@@ -23,7 +23,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 Filter:
 
 @Component
-public class HcmPortalFilter extends HttpFilter {
+public class AppFilter extends HttpFilter {
 
   private static final long serialVersionUID = 1L;
   
