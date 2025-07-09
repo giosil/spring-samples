@@ -22,35 +22,69 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 Filter:
 
-@Override
-public void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-  throws IOException, ServletException {
+@Component
+public class HcmPortalFilter extends HttpFilter {
+
+  private static final long serialVersionUID = 1L;
   
-  String servletPath = request.getServletPath();
-  // Exclude logout and resources URL
-  if(servletPath == null || servletPath.equals("/logout") || servletPath.indexOf('.') > 0) {
-    chain.doFilter(request, response);
-    return;
-  }
+  private static final String AUTH_PATHS = ",/iam,/logout,";
+  private static final String LAND_PATHS = ",/landing,";
   
-  // Check Session
-  HttpSession session = request.getSession();
-  String sessionUser = (String) session.getAttribute(SESS_USER);
-  if(sessionUser == null || sessionUser.length() == 0) {
-    // Check last authorize request (to avoid the loop)
-    String lastAuthorizeRequest = (String) session.getAttribute(SESS_AUTH);
-    if(lastAuthorizeRequest == null || lastAuthorizeRequest.length() == 0) {
-      String location = IAM.getAuthorizeRequest(servletPath);
-      if(location != null && location.length() > 0) {
-        session.setAttribute(SESS_AUTH, location);
-        
-        response.setHeader("Location", location);
-        response.sendError(302);
+  @Override
+  public void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    throws IOException, ServletException {
+    
+    String servletPath = request.getServletPath();
+    if(servletPath == null) servletPath = "";
+    
+    // I path /iam, /close e /logout devono essere esclusi dal filtro
+    // poiche' rientrano nella gestione dell'autenticazione e si corre 
+    // il rischio di innescare loop di redirect.
+    if(AUTH_PATHS.indexOf("," + servletPath + ",") >= 0) {
+      chain.doFilter(request, response);
+      return;
+    }
+    // Si verifica che il path non corrisponda ad una risorsa (ad es. /css/main.css).
+    // Il controllo della presenza del punto deve essere accompagnato anche dal controllo
+    // della sua posizione rispetto al separatore dei parametri.
+    // Questo per evitare che passino URL camuffati da risorse (ad es. /app-test?x.x
+    boolean isAResource = false;
+    int sepParams = servletPath.indexOf('?');
+    if(sepParams < 0) {
+      isAResource = servletPath.indexOf('.') >= 0;
+    }
+    else {
+      isAResource = servletPath.indexOf('.') < sepParams;
+    }
+    if(isAResource) {
+      chain.doFilter(request, response);
+      return;
+    }
+    
+    HttpSession session = request.getSession();
+    
+    // Le landing pages non dovrebbero fare affidamento sulla sessione.
+    if(LAND_PATHS.indexOf("," + servletPath + ",") < 0) {
+      String user = (String) session.getAttribute(SESS_USER);
+      if(user != null && user.length() > 0) {
+        chain.doFilter(request, response);
         return;
       }
     }
+    
+    // Authorization request
+    String location = IAM.getAuthorizeRequest(servletPath);
+    if(location != null && location.length() > 0) {
+      // HTTP Redirect
+      response.setHeader("Location", location);
+      response.sendError(302);
+      return;
+    }
+    else {
+      response.sendError(401); // Unauthorized
+      return;
+    }
   }
-  chain.doFilter(request, response);
 }
 
 Controller:
@@ -67,15 +101,26 @@ public String iam(
   
   System.out.println("/iam code=" + code + ",state=" + state + ",session_state=" + session_state + "," + error + "," + error_description);
   
+  model.addAttribute("sources", isDebug(request) ? "" : ".min");
+  model.addAttribute("version", VERSION);
+  
+  HttpSession session = request.getSession();
+  
+  // La chiamata a tale servizio deve portare ad una coerente valorizzazione della sessione.
+  // In caso di fallimento la sessione deve essere pulita.
+  cleanSession(session);
+  
   IAMTokenResponse tokenResponse = IAM.requestToken(code, state);
   
+  String token = null;
+  
   if(tokenResponse != null) {
-    String token = tokenResponse.getAccess_token();
+    token = tokenResponse.getAccess_token();
     if(token != null && token.length() > 0) {
       String subject = IAM.getSubject(token);
       
       if(subject != null && subject.length() > 0) {
-        HttpSession session = request.getSession();
+        session.setAttribute(SESS_AUTH,     "iam");
         session.setAttribute(SESS_USER,     subject);
         session.setAttribute(SESS_TOKEN,    token);
         session.setAttribute(SESS_STATE,    state);
@@ -85,27 +130,43 @@ public String iam(
         if(servletPath != null && servletPath.length() > 0 && servletPath.startsWith("/")) {
           return "redirect:" + servletPath;
         }
+        else {
+          return "home";
+        }
       }
     }
   }
-  return "home";
+  
+  model.addAttribute("title", "Attenzione");
+  if(error != null && error.length() > 0) {
+    model.addAttribute("message", "Errore: " + error + ", " + error_description);
+  }
+  else if(code != null && code.length() > 0) {
+    if(token != null && token.length() > 0) {
+      model.addAttribute("message", "Token non valido: " + token);
+    }
+    else {
+      model.addAttribute("message", "Token non recuperato per code=" + code);
+    }
+  }
+  else {
+    model.addAttribute("message", "Parametro code non specificato.");
+  }
+  return "public";
 }
 
 @GetMapping("/logout")
 public String logout(Model model, HttpServletRequest request, HttpServletResponse response) {
+  
   HttpSession session = request.getSession();
   
+  String user    = (String) session.getAttribute(SESS_USER);
   String idToken = (String) session.getAttribute(SESS_ID_TOKEN);
   String state   = (String) session.getAttribute(SESS_STATE);
   
-  System.out.println("/logout idToken=" + idToken + ",state=" + state);
+  System.out.println("/logout idToken=" + idToken + ",state=" + state + ",user=" + user);
   
-  session.removeAttribute(SESS_AUTH);
-  session.removeAttribute(SESS_USER);
-  session.removeAttribute(SESS_TOKEN);
-  session.removeAttribute(SESS_STATE);
-  session.removeAttribute(SESS_ID_TOKEN);
-  session.removeAttribute(SESS_USER_DTO);
+  cleanSession(session);
   
   if(idToken != null && idToken.length() > 0) {
     if(state != null && state.length() > 0) {
@@ -115,7 +176,20 @@ public String logout(Model model, HttpServletRequest request, HttpServletRespons
       }
     }
   }
-  return "logout";
+  model.addAttribute("sources", isDebug(request) ? "" : ".min");
+  model.addAttribute("version", VERSION);
+  model.addAttribute("title",   "Sessione chiusa");
+  model.addAttribute("message", "Grazie e buon proseguimento.");
+  model.addAttribute("pscript", new PortalContent());
+  return "public";
+}
+
+protected void cleanSession(HttpSession session) {
+  session.removeAttribute(SESS_AUTH);
+  session.removeAttribute(SESS_USER);
+  session.removeAttribute(SESS_TOKEN);
+  session.removeAttribute(SESS_STATE);
+  session.removeAttribute(SESS_ID_TOKEN);
 }
 */
 public class IAM {
