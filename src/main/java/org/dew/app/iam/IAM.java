@@ -6,6 +6,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +23,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 Filter:
 
-@Component
-public class AppFilter extends HttpFilter {
+public class HcmPortalFilter extends HttpFilter {
 
   private static final long serialVersionUID = 1L;
   
@@ -70,17 +70,50 @@ public class AppFilter extends HttpFilter {
     
     HttpSession session = request.getSession();
     
+    // Autenticazione eseguita con token passato esplicitamente tramite parametro
+    if(token != null && token.length() > 0) {
+      // Token passato come parametro
+      String subject = IAM.getSubject(token);
+      if(subject != null && subject.length() > 0) {
+        session.setAttribute(SESS_AUTH,     "token");
+        session.setAttribute(SESS_TIME,     System.currentTimeMillis());
+        session.setAttribute(SESS_PATH,     servletPath);
+        session.setAttribute(SESS_USER,     subject);
+        session.setAttribute(SESS_TOKEN,    token);
+        session.setAttribute(SESS_ID_TOKEN, ""); // Valorizzati da IAM
+        session.setAttribute(SESS_STATE,    ""); // Valorizzati da IAM
+        
+        chain.doFilter(request, response);
+        return;
+      }
+      else {
+        response.sendError(401); // Unauthorized
+        return;
+      }
+    }
+    
     // Le landing pages dove si e' rediretti da sistemi terzi che sono integrati 
     // con SSO non dovrebbero fare affidamento sulla sessione.
     // Esse dovrebbero sempre utilizzare IAM per verificare puntualmente
     // l'accesso. L'utilizzo della chiave SESS_FLAG (da "consumare") 
     // permette tuttavia di non innescare loop di redirect.
     if(LAND_PATHS.indexOf("," + servletPath + ",") >= 0) {
-      Object flag = session.getAttribute(SESS_FLAG);
-      if(flag != null) {
-        session.removeAttribute(SESS_FLAG);
+      String auth  = (String) session.getAttribute(SESS_AUTH);
+      String user  = (String) session.getAttribute(SESS_USER);
+      Number ntime = (Number) session.getAttribute(SESS_TIME);
+      long   ltime = ntime != null ? ntime.longValue() : 0l;
+      long   diff = System.currentTimeMillis() - ltime;
+      IAM.log(servletPath + " " + SESS_AUTH + "=" + auth + "," + SESS_USER + "=" + user + "," + SESS_TIME + "=" + ntime + ",diff=" + diff);
+      if(diff < 5000) {
         chain.doFilter(request, response);
         return;
+      }
+      // Il controllo della sessione e' ammesso in caso di autenticazione tramite token 
+      if(auth != null && auth.equals("token")) {
+        if(user != null && user.length() > 0) {
+          chain.doFilter(request, response);
+          return;
+        }
       }
     }
     else {
@@ -108,6 +141,16 @@ public class AppFilter extends HttpFilter {
 
 Controller:
 
+// Session
+public static final String SESS_AUTH     = "auth";
+public static final String SESS_TIME     = "time";
+public static final String SESS_PATH     = "path";
+public static final String SESS_USER     = "user";
+public static final String SESS_TOKEN    = "token";
+public static final String SESS_STATE    = "state";
+public static final String SESS_ID_TOKEN = "idToken";
+public static final String SESS_USER_DTO = "userDTO";
+
 @GetMapping("/iam")
 public String iam(
     @RequestParam(name = "code",              required = false) String code,
@@ -118,10 +161,7 @@ public String iam(
     Model model, 
     HttpServletRequest request) {
   
-  System.out.println("/iam code=" + code + ",state=" + state + ",session_state=" + session_state + "," + error + "," + error_description);
-  
-  model.addAttribute("sources", isDebug(request) ? "" : ".min");
-  model.addAttribute("version", VERSION);
+  logger.debug("/iam code=" + code + ",state=" + state + ",session_state=" + session_state + "," + error + "," + error_description);
   
   HttpSession session = request.getSession();
   
@@ -140,7 +180,7 @@ public String iam(
       
       if(subject != null && subject.length() > 0) {
         session.setAttribute(SESS_AUTH,     "iam");
-        session.setAttribute(SESS_FLAG,     Boolean.TRUE);
+        session.setAttribute(SESS_TIME,     System.currentTimeMillis());
         session.setAttribute(SESS_USER,     subject);
         session.setAttribute(SESS_TOKEN,    token);
         session.setAttribute(SESS_STATE,    state);
@@ -186,7 +226,7 @@ public String logout(Model model, HttpServletRequest request, HttpServletRespons
   String idToken = (String) session.getAttribute(SESS_ID_TOKEN);
   String state   = (String) session.getAttribute(SESS_STATE);
   
-  System.out.println("/logout idToken=" + idToken + ",state=" + state + ",user=" + user);
+  logger.debug("/logout idToken=" + idToken + ",state=" + state + ",user=" + user);
   
   cleanSession(session);
   
@@ -198,8 +238,6 @@ public String logout(Model model, HttpServletRequest request, HttpServletRespons
       }
     }
   }
-  model.addAttribute("sources", isDebug(request) ? "" : ".min");
-  model.addAttribute("version", VERSION);
   model.addAttribute("title",   "Sessione chiusa");
   model.addAttribute("message", "Grazie e buon proseguimento.");
   model.addAttribute("pscript", new PortalContent());
@@ -208,12 +246,13 @@ public String logout(Model model, HttpServletRequest request, HttpServletRespons
 
 protected void cleanSession(HttpSession session) {
   session.removeAttribute(SESS_AUTH);
-  session.removeAttribute(SESS_FLAG);
+  session.removeAttribute(SESS_TIME);
   session.removeAttribute(SESS_PATH);
   session.removeAttribute(SESS_USER);
   session.removeAttribute(SESS_TOKEN);
   session.removeAttribute(SESS_STATE);
   session.removeAttribute(SESS_ID_TOKEN);
+  session.removeAttribute(SESS_USER_DTO);
 }
 */
 public class IAM {
@@ -559,5 +598,22 @@ public class IAM {
       ex.printStackTrace();
     }
     return "";
+  }
+  
+  public static void log(String message) {
+    Calendar cal = Calendar.getInstance();
+    int iYear  = cal.get(Calendar.YEAR);
+    int iMonth = cal.get(Calendar.MONTH) + 1;
+    int iDay   = cal.get(Calendar.DATE);
+    int iHour  = cal.get(Calendar.HOUR_OF_DAY);
+    int iMin   = cal.get(Calendar.MINUTE);
+    int iSec   = cal.get(Calendar.SECOND);
+    String sYear  = String.valueOf(iYear);
+    String sMonth = iMonth < 10 ? "0" + iMonth : String.valueOf(iMonth);
+    String sDay   = iDay   < 10 ? "0" + iDay   : String.valueOf(iDay);
+    String sHour  = iHour  < 10 ? "0" + iHour  : String.valueOf(iHour);
+    String sMin   = iMin   < 10 ? "0" + iMin   : String.valueOf(iMin);
+    String sSec   = iSec   < 10 ? "0" + iSec   : String.valueOf(iSec);
+    System.out.println(sYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMin + ":" + sSec + " " + message);
   }
 }
