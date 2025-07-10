@@ -30,9 +30,16 @@ public class AppFilter extends HttpFilter {
   private static final String AUTH_PATHS = ",/iam,/logout,";
   private static final String LAND_PATHS = ",/landing,";
   
+  public static boolean TEST_MODE = false;
+  
   @Override
   public void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
     throws IOException, ServletException {
+    
+    if(TEST_MODE) {
+      chain.doFilter(request, response);
+      return;
+    }
     
     String servletPath = request.getServletPath();
     if(servletPath == null) servletPath = "";
@@ -63,8 +70,20 @@ public class AppFilter extends HttpFilter {
     
     HttpSession session = request.getSession();
     
-    // Le landing pages non dovrebbero fare affidamento sulla sessione.
-    if(LAND_PATHS.indexOf("," + servletPath + ",") < 0) {
+    // Le landing pages dove si e' rediretti da sistemi terzi che sono integrati 
+    // con SSO non dovrebbero fare affidamento sulla sessione.
+    // Esse dovrebbero sempre utilizzare IAM per verificare puntualmente
+    // l'accesso. L'utilizzo della chiave SESS_FLAG (da "consumare") 
+    // permette tuttavia di non innescare loop di redirect.
+    if(LAND_PATHS.indexOf("," + servletPath + ",") >= 0) {
+      Object flag = session.getAttribute(SESS_FLAG);
+      if(flag != null) {
+        session.removeAttribute(SESS_FLAG);
+        chain.doFilter(request, response);
+        return;
+      }
+    }
+    else {
       String user = (String) session.getAttribute(SESS_USER);
       if(user != null && user.length() > 0) {
         chain.doFilter(request, response);
@@ -121,6 +140,7 @@ public String iam(
       
       if(subject != null && subject.length() > 0) {
         session.setAttribute(SESS_AUTH,     "iam");
+        session.setAttribute(SESS_FLAG,     Boolean.TRUE);
         session.setAttribute(SESS_USER,     subject);
         session.setAttribute(SESS_TOKEN,    token);
         session.setAttribute(SESS_STATE,    state);
@@ -128,9 +148,11 @@ public String iam(
         
         String servletPath = IAM.getServletPath(state);
         if(servletPath != null && servletPath.length() > 0 && servletPath.startsWith("/")) {
+          session.setAttribute(SESS_PATH, servletPath);
           return "redirect:" + servletPath;
         }
         else {
+          session.setAttribute(SESS_PATH, "/home");
           return "home";
         }
       }
@@ -186,6 +208,8 @@ public String logout(Model model, HttpServletRequest request, HttpServletRespons
 
 protected void cleanSession(HttpSession session) {
   session.removeAttribute(SESS_AUTH);
+  session.removeAttribute(SESS_FLAG);
+  session.removeAttribute(SESS_PATH);
   session.removeAttribute(SESS_USER);
   session.removeAttribute(SESS_TOKEN);
   session.removeAttribute(SESS_STATE);
