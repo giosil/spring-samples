@@ -44,7 +44,7 @@ public class AppFilter extends HttpFilter {
     String servletPath = request.getServletPath();
     if(servletPath == null) servletPath = "";
     
-    // I path /iam, /close e /logout devono essere esclusi dal filtro
+    // I path /iam e /logout devono essere esclusi dal filtro
     // poiche' rientrano nella gestione dell'autenticazione e si corre 
     // il rischio di innescare loop di redirect.
     if(AUTH_PATHS.indexOf("," + servletPath + ",") >= 0) {
