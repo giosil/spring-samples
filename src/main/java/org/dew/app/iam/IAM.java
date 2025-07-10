@@ -95,8 +95,7 @@ public class HcmPortalFilter extends HttpFilter {
     // Le landing pages dove si e' rediretti da sistemi terzi che sono integrati 
     // con SSO non dovrebbero fare affidamento sulla sessione.
     // Esse dovrebbero sempre utilizzare IAM per verificare puntualmente
-    // l'accesso. L'utilizzo della chiave SESS_FLAG (da "consumare") 
-    // permette tuttavia di non innescare loop di redirect.
+    // l'accesso. Il controllo di SESS_TIME permette di non innescare loop di redirect.
     if(LAND_PATHS.indexOf("," + servletPath + ",") >= 0) {
       String auth  = (String) session.getAttribute(SESS_AUTH);
       String user  = (String) session.getAttribute(SESS_USER);
