@@ -57,7 +57,10 @@ public class ReportController {
     byte[] content = ExportAs.any(records, title, type);
     
     if(copyTo != null && copyTo.length() > 0) {
-      String filePath = ExportAs.getDesktopPath(copyTo);
+      String filePath = copyTo;
+      if(copyTo.indexOf('/') < 0 && copyTo.indexOf('\\') < 0) {
+        filePath = ExportAs.getDesktopPath(copyTo);
+      }
       ExportAs.saveContent(content, filePath);
     }
     
