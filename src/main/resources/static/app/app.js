@@ -798,35 +798,32 @@ var APP;
             var _this = this;
             this.brcr = new APP.Breadcrumb();
             this.brcr.add('Report');
+            var operazioni = ['', 'POST', 'PUT', 'DELETE'];
             this.form = new WUX.WForm(this.subId('form'));
             this.form
                 .addRow()
-                .addDateField('id_comune', 'Id comune')
-                .addDateField('fiscale', 'Fiscale')
+                .addDateField('log_data__gte', 'Dalla data')
+                .addDateField('log_data__lte', 'Alla data')
                 .addRow()
-                .addTextField('descrizione__x', 'Denominazione', { "span": 2 });
-            this.btnExport = new WUX.WButton(this.subId('btnFind'), 'Genera Report', 'fa-file-excel', 'btn-icon btn btn-primary', 'margin-right: 0.5rem;');
-            this.btnExport.on('click', function (e) {
-                var report = {
-                    "table": 'ana_comuni',
-                    "fields": ['id_comune', 'fiscale', 'provincia', 'descrizione'],
-                    "filter": _this.form.getState(),
-                    "orderBy": 'descrizione',
-                    "maxRows": 50,
-                    "headers": true,
-                    "paging": false
-                };
-                APP.http.post('report/export', report, function (data) {
-                    console.log('Response:', data);
-                    if (data && data.content) {
-                        WUX.saveFile(data.content, 'log.xlsx');
-                        APP.showSuccess('Report generato con successo.');
-                    }
-                    else {
-                        APP.showError('Conenuto non disponibile o vuoto.');
-                    }
-                });
+                .addOptionsField('log_operazione__in0', 'Operazione', operazioni)
+                .addOptionsField('log_operazione__in1', 'Operazione', operazioni)
+                .addRow()
+                .addBlankField()
+                .addRow()
+                .addTextField('log_funzione__x', 'Funzione', { "span": 2 })
+                .addTextField('__groupBy__', 'Raggruppa per')
+                .addToggleField('__preview__', 'Anteprima');
+            this.btnFind = new WUX.WButton(this.subId('btnFind'), 'Genera Report', 'fa-file-excel', 'btn-icon btn btn-primary', 'margin-right: 0.5rem;');
+            this.btnFind.on('click', function (e) {
+                _this.doFind();
             });
+            this.btnReset = new WUX.WButton(this.subId('btnReset'), 'Annulla', 'fa-undo', 'btn-icon btn btn-secondary');
+            this.btnReset.on('click', function (e) {
+                _this.doReset();
+            });
+            this.table = new WUX.WTable(this.subId('tapp'), [''], ['0']);
+            // Questo consente di forzare il refresh della tabella
+            this.table.forceOnChange = true;
             this.main = new WUX.WContainer();
             this.main
                 .before(this.brcr)
@@ -835,8 +832,74 @@ var APP;
                 .add(this.form)
                 .addRow()
                 .addCol('col-md-8')
-                .addGroup({ "classStyle": "form-row" }, this.btnExport);
+                .addGroup({ "classStyle": "form-row" }, this.btnFind, this.btnReset)
+                .addRow()
+                .addCol('col-md-12', 'padding-top: 1rem;')
+                .add(this.table);
             return this.main;
+        };
+        GUIReport.prototype.clearTable = function () {
+            this.table.header = [''];
+            this.table.keys = ['0'];
+            this.table.setState([]);
+        };
+        GUIReport.prototype.doFind = function () {
+            var _this = this;
+            if (this.form.isBlank()) {
+                APP.showWarning('Nessun criterio di ricerca specificato.');
+                return;
+            }
+            var filter = this.form.getState();
+            var report = {
+                "table": 'APP_LOG',
+                "title": 'Report Operazioni',
+                "fields": ['CODICE_FISCALE', 'LOG_OPERAZIONE', 'LOG_FUNZIONE'],
+                "filter": filter,
+                "orderBy": 'LOG_DATA DESC',
+                "maxRows": 50,
+                "headers": true,
+                "paging": false,
+                "groupBy": []
+            };
+            if (filter && filter['__preview__']) {
+                APP.http.post('report/select', report, function (data) {
+                    console.log('Response:', data);
+                    if (data && data.length > 0) {
+                        // Remove first row (headers)
+                        var dh = data.shift();
+                        var ks = [];
+                        for (var i = 0; i < dh.length; i++) {
+                            ks.push('' + i);
+                        }
+                        _this.table.header = dh;
+                        _this.table.keys = ks;
+                        _this.table.setState(data);
+                        APP.showSuccess('Report generato con successo.');
+                    }
+                    else {
+                        _this.clearTable();
+                        APP.showError('Conenuto non disponibile o vuoto.');
+                    }
+                });
+            }
+            else {
+                APP.http.post('report/export', report, function (data) {
+                    console.log('Response:', data);
+                    _this.clearTable();
+                    if (data && data.content) {
+                        WUX.saveFile(data.content, 'report.xlsx');
+                        APP.showSuccess('Report generato con successo.');
+                    }
+                    else {
+                        APP.showError('Conenuto non disponibile o vuoto.');
+                    }
+                });
+            }
+        };
+        GUIReport.prototype.doReset = function () {
+            this.clearTable();
+            this.form.clear();
+            this.form.focus();
         };
         return GUIReport;
     }(WUX.WComponent));

@@ -51,21 +51,27 @@ public class ReportService {
     throws Exception
   {
     if(parameters == null || parameters.isEmpty()) {
-      log("[ReportService] Missing parameters");
+      log("Missing parameters");
       return new ArrayList<List<Object>>(0);
     }
     String table = toString(parameters.get("table"));
     if(table == null || table.length() == 0) {
-      log("[ReportService] Missing table in parameters");
+      log("Missing table in parameters");
       return new ArrayList<List<Object>>(0);
     }
     
     Map<String, Object> mapFilter = toMap(parameters.get("filter"));
     List<String> listFields       = toListOfString(parameters.get("fields"));
     List<String> listGroupBy      = toListOfString(parameters.get("groupBy"));
-    String  sOrderBy              = toString(parameters.get("orderBy"));
-    int     iMaxRows              = toInt(parameters.get("maxRows"), 0);
-    boolean boIncludeHeader       = toBoolean(parameters.get("headers"), true);
+    String       orderBy          = toString(parameters.get("orderBy"));
+    int          maxRows          = toInt(parameters.get("maxRows"), 0);
+    boolean      includeHeader    = toBoolean(parameters.get("headers"), true);
+    if(mapFilter != null) {
+      List<String> listFilterGroupBy = toListOfString(mapFilter.get("__groupBy__"));
+      if(listFilterGroupBy != null && listFilterGroupBy.size() > 0) {
+        listGroupBy = listFilterGroupBy;
+      }
+    }
     
     Object paging = parameters.get("paging");
     if(paging != null) {
@@ -73,7 +79,7 @@ public class ReportService {
       mapFilter.put("__paging__", toBoolean(paging, false));
     }
     
-    List<List<Object>> result = select(conn, table, mapFilter, listFields, sOrderBy, iMaxRows, boIncludeHeader);
+    List<List<Object>> result = select(conn, table, mapFilter, listFields, orderBy, maxRows, includeHeader);
     
     List<Integer> listIndex = indexOf(listFields, listGroupBy);
     if(listIndex != null && listIndex.size() > 0) {
@@ -83,7 +89,7 @@ public class ReportService {
       while(iterator.hasNext()) {
         List<Object> record = iterator.next();
         row++;
-        if(boIncludeHeader && row == 1) continue;
+        if(includeHeader && row == 1) continue;
         
         String group = getGroupValues(record, listIndex);
         if(group == null || group.length() == 0) continue;
@@ -106,7 +112,7 @@ public class ReportService {
   }
   
   public static
-  List<List<Object>> select(Connection conn, String table, Map<String, Object> mapFilter, List<String> listFields, String sOrderBy, int iMaxRows, boolean boIncludeHeader)
+  List<List<Object>> select(Connection conn, String table, Map<String, Object> mapFilter, List<String> listFields, String orderBy, int maxRows, boolean includeHeader)
     throws Exception
   {
     if(DBMS == null || DBMS.length() == 0) {
@@ -122,24 +128,28 @@ public class ReportService {
       mapFilter = new HashMap<String, Object>();
     }
     
-    String sHint = "";
-    if(sOrderBy != null && sOrderBy.startsWith("/*")) {
-      int iEndHit = sOrderBy.indexOf("*/");
-      sHint    = sOrderBy.substring(0, iEndHit + 2);
-      sOrderBy = sOrderBy.substring(iEndHit + 2).trim();
-      if(sHint != null && sHint.length() > 0) sHint += " ";
+    String hint = toString(mapFilter.get("__hint__"));
+    if(hint != null && hint.length() > 0) {
+      if(!hint.startsWith("/*")) {
+        hint = "/*+ " + hint + " */";
+      }
     }
-    
-    int iFltMaxRows = toInt(mapFilter.remove("__maxrows__"), 0);
-    if(iFltMaxRows > 0) {
-      iMaxRows = iFltMaxRows;
+    else {
+      hint = "";
     }
+    int filterMaxRows = toInt(mapFilter.get("__maxrows__"), 0);
+    if(filterMaxRows > 0) {
+      maxRows = filterMaxRows;
+    }
+    List<String> listFilterFields = toListOfString(mapFilter.get("__fields__"));
+    if(listFilterFields != null && listFilterFields.size() > 0) {
+      listFields = listFilterFields;
+    }
+    if(maxRows < 1) maxRows = 10000;
     
-    if(iMaxRows < 1) iMaxRows = 10000;
+    int page = toInt(mapFilter.get("__page__"), 0);
     
-    int page = toInt(mapFilter.remove("__page__"), 0);
-    
-    boolean paging = toBoolean(mapFilter.remove("__paging__"), false);
+    boolean paging = toBoolean(mapFilter.get("__paging__"), false);
     if(!paging) page = 0;
     
     boolean descOrder = false;
@@ -148,11 +158,7 @@ public class ReportService {
       descOrder = true;
     }
     
-    String sAdditionalClause = null;
-    Object oAdditionalClause = mapFilter.remove("__clause__");
-    if(oAdditionalClause != null) {
-      sAdditionalClause = oAdditionalClause.toString();
-    }
+    String sAdditionalClause = toString(mapFilter.get("__clause__"));
     
     Set<String> setBlnFields = getBooleanFields(table,    mapFilter);
     
@@ -197,8 +203,8 @@ public class ReportService {
         }
       }
       
-      if(sOrderBy != null && sOrderBy.length() > 0) {
-        sSQL += " ORDER BY " + sOrderBy.replace('-', '.');
+      if(orderBy != null && orderBy.length() > 0) {
+        sSQL += " ORDER BY " + orderBy.replace('-', '.');
       }
       else {
         if(descOrder) {
@@ -210,7 +216,7 @@ public class ReportService {
       }
     }
     else {
-      sSQL = "SELECT " + sHint + sFields + " FROM " + table;
+      sSQL = "SELECT " + hint + sFields + " FROM " + table;
       
       String sWhere = buildWhere(mapFilter);
       if(sWhere != null && sWhere.length() > 0) {
@@ -228,8 +234,8 @@ public class ReportService {
         }
       }
       
-      if(sOrderBy != null && sOrderBy.length() > 0) {
-        sSQL += " ORDER BY " + sOrderBy.replace('-', '.');
+      if(orderBy != null && orderBy.length() > 0) {
+        sSQL += " ORDER BY " + orderBy.replace('-', '.');
       }
       else {
         if(descOrder) {
@@ -267,8 +273,8 @@ public class ReportService {
       stm.setQueryTimeout(QUERY_TIMEOUT);
       rs  = stm.executeQuery(sSQL);
       
-      if(page > 1 && iMaxRows > 0) {
-        skip(rs, (page - 1) * iMaxRows);
+      if(page > 1 && maxRows > 0) {
+        skip(rs, (page - 1) * maxRows);
       }
       
       Set<Integer> setBlnFieldIdxs = new HashSet<Integer>();
@@ -285,7 +291,7 @@ public class ReportService {
         listHeader.add(columnName);
         columnTypes[i] = rsmd.getColumnType(i + 1);
       }
-      if(boIncludeHeader) {
+      if(includeHeader) {
         listResult.add(listHeader);  
       }
       
@@ -307,10 +313,10 @@ public class ReportService {
         }
         listResult.add(listRecord);
         rows++;
-        if(rows >= iMaxRows) break;
+        if(rows >= maxRows) break;
       }
       
-      log("result: [" + listResult.size() + "]");
+      log("select " + table + " maxRows=" + maxRows + ",includeHeader=" + includeHeader + ",rows=" + rows);
     }
     catch(Exception ex) {
       log("Exception: " + ex);
@@ -327,10 +333,10 @@ public class ReportService {
         List<Object> item0 = listResult.get(0);
         if(item0 != null) {
           item0.add(count);
-          item0.add(iMaxRows);
-          if(iMaxRows > 0 && count > 0) {
-            long pages = count / iMaxRows;
-            if((count % iMaxRows) > 0) pages++;
+          item0.add(maxRows);
+          if(maxRows > 0 && count > 0) {
+            long pages = count / maxRows;
+            if((count % maxRows) > 0) pages++;
             item0.add(pages);
           }
           else {
@@ -377,7 +383,7 @@ public class ReportService {
       return productName;
     }
     catch(Exception ex) {
-      log("[ReportService] getDBMS(conn): " + ex);
+      log("getDBMS(conn): " + ex);
     }
     return null;
   }
@@ -420,7 +426,8 @@ public class ReportService {
       calToTime.add(Calendar.MINUTE,       10);
     }
     
-    List<String> listInFields = new ArrayList<String>();
+    // In clause
+    List<String> listInFields  = new ArrayList<String>();
     List<String> listNInFields = new ArrayList<String>();
     Set<String> keySet = mapFilter.keySet();
     Iterator<String> itKeys = keySet.iterator();
@@ -484,7 +491,10 @@ public class ReportService {
       
       key = key.replace('-', '.');
       
+      // Security issue
       if(key.indexOf('/') >= 0) continue;
+      // Parameters to ignore
+      if(key.startsWith("__") && key.endsWith("__")) continue;
       
       if(valueTmp instanceof Collection) {
         String sIn = "";
@@ -872,6 +882,7 @@ public class ReportService {
     }
     else if(value instanceof String) {
       String text = (String) value;
+      if(text.length() == 0) return result;
       if(text.startsWith("[") && text.endsWith("]")) {
         text = text.substring(1, text.length()-1);
       }
@@ -1089,7 +1100,7 @@ public class ReportService {
           result.add(number);
         }
         catch(Exception ex) {
-          log("[ReportService] Exception in parsing " + curr + " in getNumbers(" + text + "): " + ex);
+          log("Exception in parsing " + curr + " in getNumbers(" + text + "): " + ex);
         }
         curr = new StringBuilder();
       }
@@ -1100,7 +1111,7 @@ public class ReportService {
         result.add(number);
       }
       catch(Exception ex) {
-        log("[ReportService] Exception in parsing " + curr + " in getNumbers(" + text + "): " + ex);
+        log("Exception in parsing " + curr + " in getNumbers(" + text + "): " + ex);
       }
     }
     return result;
@@ -1203,6 +1214,6 @@ public class ReportService {
     String sHour  = iHour  < 10 ? "0" + iHour  : String.valueOf(iHour);
     String sMin   = iMin   < 10 ? "0" + iMin   : String.valueOf(iMin);
     String sSec   = iSec   < 10 ? "0" + iSec   : String.valueOf(iSec);
-    System.out.println(sYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMin + ":" + sSec + " " + message);
+    System.out.println(sYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMin + ":" + sSec + " [ReportService] " + message);
   }
 }

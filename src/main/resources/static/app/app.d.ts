@@ -130,6 +130,7 @@ declare namespace APP {
         maxRows?: number;
         headers?: boolean;
         paging?: boolean;
+        groupBy?: string[];
     }
     interface ReportRes {
         title?: string;
@@ -141,9 +142,14 @@ declare namespace APP {
         main: WUX.WContainer;
         brcr: Breadcrumb;
         form: WUX.WForm;
-        btnExport: WUX.WButton;
+        table: WUX.WTable;
+        btnFind: WUX.WButton;
+        btnReset: WUX.WButton;
         constructor();
         render(): WUX.WContainer;
+        clearTable(): void;
+        doFind(): void;
+        doReset(): void;
     }
 }
 declare namespace APP {
