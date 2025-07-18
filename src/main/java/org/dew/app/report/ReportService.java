@@ -1,10 +1,8 @@
 package org.dew.app.report;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.lang.reflect.Array;
-import java.sql.Blob;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
@@ -22,20 +20,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class DB {
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class ReportService {
   
-  protected static int QUERY_TIMEOUT = 10 * 60;
+  @Autowired
+  DataSource dataSource;
   
-  public static
-  String getString(Map<String, Object> parameters, String key, String defaultValue)
-  {
-    if(parameters == null) return defaultValue;
-    
-    Object value = parameters.get(key);
-    
-    if(value == null) return defaultValue;
-    
-    return value.toString();
+  private static int QUERY_TIMEOUT = 10 * 60;
+  private static String DBMS;
+  
+  public List<List<Object>> select(Map<String, Object> parameters) throws Exception {
+    Connection conn = null;
+    try {
+      conn = dataSource.getConnection();
+      
+      return select(conn, parameters);
+    }
+    finally {
+      if(conn != null) try { conn.close(); } catch(Exception ex) {}
+    }
   }
   
   public static
@@ -43,12 +51,12 @@ public class DB {
     throws Exception
   {
     if(parameters == null || parameters.isEmpty()) {
-      System.err.println("[DB] Missing parameters");
+      log("[ReportService] Missing parameters");
       return new ArrayList<List<Object>>(0);
     }
     String table = toString(parameters.get("table"));
     if(table == null || table.length() == 0) {
-      System.err.println("[DB] Missing table in parameters");
+      log("[ReportService] Missing table in parameters");
       return new ArrayList<List<Object>>(0);
     }
     
@@ -101,6 +109,9 @@ public class DB {
   List<List<Object>> select(Connection conn, String table, Map<String, Object> mapFilter, List<String> listFields, String sOrderBy, int iMaxRows, boolean boIncludeHeader)
     throws Exception
   {
+    if(DBMS == null || DBMS.length() == 0) {
+      DBMS = getDBMS(conn);
+    }
     if(conn == null || table == null || table.length() == 0) {
       return new ArrayList<List<Object>>(0);
     }
@@ -124,11 +135,12 @@ public class DB {
       iMaxRows = iFltMaxRows;
     }
     
-    if(iMaxRows < 1) iMaxRows = 100000;
+    if(iMaxRows < 1) iMaxRows = 10000;
     
     int page = toInt(mapFilter.remove("__page__"), 0);
     
     boolean paging = toBoolean(mapFilter.remove("__paging__"), false);
+    if(!paging) page = 0;
     
     boolean descOrder = false;
     if(page < 0) {
@@ -137,12 +149,11 @@ public class DB {
     }
     
     String sAdditionalClause = null;
-    Object oAdditionalClause = mapFilter.remove("_0");
+    Object oAdditionalClause = mapFilter.remove("__clause__");
     if(oAdditionalClause != null) {
       sAdditionalClause = oAdditionalClause.toString();
     }
     
-    // Campi da convertire a boolean
     Set<String> setBlnFields = getBooleanFields(table,    mapFilter);
     
     String sFields = "*";
@@ -240,7 +251,7 @@ public class DB {
     
     List<List<Object>> listResult = new ArrayList<List<Object>>();
     
-    System.out.println("[DB] " + sSQL);
+    log(sSQL);
     
     long count = -1;
     int  rows  = 0;
@@ -249,6 +260,7 @@ public class DB {
     try {
       if(page > 0) {
         count = count(conn, sSQL);
+        log("count=" + count);
       }
       
       stm = conn.createStatement();
@@ -297,8 +309,11 @@ public class DB {
         rows++;
         if(rows >= iMaxRows) break;
       }
+      
+      log("result: [" + listResult.size() + "]");
     }
     catch(Exception ex) {
+      log("Exception: " + ex);
       ex.printStackTrace();
       throw ex;
     }
@@ -328,7 +343,46 @@ public class DB {
     return listResult;
   }
   
-  protected static
+  public static
+  String getDBMS(Connection conn)
+  {
+    if(conn == null) return null;
+    try {
+      DatabaseMetaData dbmd = conn.getMetaData();
+      if(dbmd == null) return null;
+      String productName = dbmd.getDatabaseProductName();
+      if(productName == null) return null;
+      productName = productName.trim().toLowerCase();
+      if(productName.startsWith("o")) {
+        return "oracle";
+      }
+      else if(productName.startsWith("m")) {
+        return "mysql";
+      }
+      else if(productName.startsWith("m")) {
+        return "mariadb";
+      }
+      else if(productName.startsWith("p")) {
+        return "postgres";
+      }
+      else if(productName.startsWith("h")) {
+        return "hsqldb";
+      }
+      else if(productName.startsWith("s")) {
+        return "sqlserver";
+      }
+      else if(productName.startsWith("d")) {
+        return "db2";
+      }
+      return productName;
+    }
+    catch(Exception ex) {
+      log("[ReportService] getDBMS(conn): " + ex);
+    }
+    return null;
+  }
+  
+  private static
   String getFieldName(String fieldName)
   {
     if(fieldName == null) return fieldName;
@@ -338,37 +392,7 @@ public class DB {
     return fieldName.substring(sep+1).trim().toUpperCase();
   }
   
-  protected static
-  String replaceParameter(String sSQL, Object val)
-  {
-    if(sSQL == null || sSQL.length() == 0) {
-      return sSQL;
-    }
-    int indexOf = sSQL.indexOf('?');
-    if(indexOf < 0) return sSQL;
-    
-    String sSQL_1 = sSQL.substring(0, indexOf);
-    String sSQL_2 = sSQL.substring(indexOf + 1);
-    
-    if(val == null) {
-      return sSQL_1 + "NULL" + sSQL_2;
-    }
-    else if(val instanceof String) {
-      return sSQL_1 + "'" + ((String) val).replace("'", "''") + "'" + sSQL_2;
-    }
-    else if(val instanceof Number) {
-      return sSQL_1 + val + sSQL_2;
-    }
-    else if(val instanceof Date) {
-      return sSQL_1 + toSQLDate((Date) val) + sSQL_2;
-    }
-    else if(val instanceof Calendar) {
-      return sSQL_1 + toSQLDate((Calendar) val) + sSQL_2;
-    }
-    return sSQL_1 + "'" + val.toString().replace("'", "''") + "'" + sSQL_2;
-  }
-  
-  protected static
+  private static
   String buildWhere(Map<String, Object> mapFilter)
   {
     if(mapFilter == null || mapFilter.isEmpty()) return null;
@@ -396,46 +420,144 @@ public class DB {
       calToTime.add(Calendar.MINUTE,       10);
     }
     
+    List<String> listInFields = new ArrayList<String>();
+    List<String> listNInFields = new ArrayList<String>();
+    Set<String> keySet = mapFilter.keySet();
+    Iterator<String> itKeys = keySet.iterator();
+    while(itKeys.hasNext()) {
+      String key  = itKeys.next();
+      int indexOf = key.indexOf("__in");
+      if(indexOf == key.length() - 5) {
+        String field = key.substring(0, key.length() - 5);
+        if(!listInFields.contains(field)) {
+          listInFields.add(field);
+        }
+        continue;
+      }
+      indexOf = key.indexOf("__nin");
+      if(indexOf == key.length() - 6) {
+        String field = key.substring(0, key.length() - 6);
+        if(!listNInFields.contains(field)) {
+          listNInFields.add(field);
+        }
+        continue;
+      }
+    }
+    if(listInFields.size() > 0) {
+      for(int i = 0; i < listInFields.size(); i++) {
+        String field = listInFields.get(i);
+        List<Object> values = new ArrayList<Object>();
+        for(int j = 0; j < 10; j++) {
+          Object value = mapFilter.remove(field + "__in" + j);
+          if(value == null) continue;
+          values.add(value);
+        }
+        if(values.size() > 0) {
+          mapFilter.put(field + "__in", values);
+        }
+      }
+    }
+    if(listNInFields.size() > 0) {
+      for(int i = 0; i < listNInFields.size(); i++) {
+        String field = listNInFields.get(i);
+        List<Object> values = new ArrayList<Object>();
+        for(int j = 0; j < 10; j++) {
+          Object value = mapFilter.remove(field + "__nin" + j);
+          if(value == null) continue;
+          values.add(value);
+        }
+        if(values.size() > 0) {
+          mapFilter.put(field + "__nin", values);
+        }
+      }
+    }
+    
     StringBuilder sbResult = new StringBuilder();
     Iterator<Map.Entry<String, Object>> iterator = mapFilter.entrySet().iterator();
     while(iterator.hasNext()) {
       Map.Entry<String, Object> entry = iterator.next();
-      Object oKey = entry.getKey();
-      String sKey = oKey.toString();
+      
+      String key      = entry.getKey();
       Object valueTmp = entry.getValue();
+      
       if(valueTmp == null) continue;
       
-      sKey = sKey.replace('-', '.');
+      key = key.replace('-', '.');
       
-      if(sKey.indexOf('/') >= 0) continue;
+      if(key.indexOf('/') >= 0) continue;
+      
+      if(valueTmp instanceof Collection) {
+        String sIn = "";
+        Iterator<?> it = ((Collection<?>) valueTmp).iterator();
+        while(it.hasNext()) {
+          Object item = it.next();
+          if(item == null) continue;
+          if(item instanceof Number) {
+            sIn += "," + item;
+          }
+          else {
+            String sItem = item.toString();
+            if(sItem == null || sItem.length() == 0) continue;
+            sIn += ",'" + sItem.replace("'", "''") + "'";
+          }
+        }
+        if(sIn.length() == 0) continue;
+        if(key.endsWith("__in")) {
+          key = key.substring(0, key.length()-4);
+          sbResult.append(key.toUpperCase() + " IN (" + sIn.substring(1) + ")");
+        }
+        else if(key.endsWith("__nin")) {
+          key = key.substring(0, key.length()-5);
+          sbResult.append(key.toUpperCase() + " NOT IN (" + sIn.substring(1) + ")");
+        }
+        else {
+          sbResult.append(key.toUpperCase() + " IN (" + sIn.substring(1) + ")");
+        }
+        sbResult.append(" AND ");
+        continue;
+      }
+      else if(key.endsWith("__in")) {
+        String s = valueTmp.toString().trim();
+        if(s.length() == 0) continue;
+        sbResult.append(key.toUpperCase() + " IN (" + s + ")");
+        sbResult.append(" AND ");
+        continue;
+      }
+      else if(key.endsWith("__nin")) {
+        String s = valueTmp.toString().trim();
+        if(s.length() == 0) continue;
+        sbResult.append(key.toUpperCase() + " NOT IN (" + s + ")");
+        sbResult.append(" AND ");
+        continue;
+      }
       
       boolean boStartsWithPerc = false;
       boolean boEndsWithPerc   = false;
-      boStartsWithPerc = sKey.startsWith("x__");
-      if(boStartsWithPerc) sKey = sKey.substring(3);
-      boEndsWithPerc = sKey.endsWith("__x");
-      if(boEndsWithPerc) sKey = sKey.substring(0, sKey.length() - 3);
+      boStartsWithPerc = key.startsWith("x__");
+      if(boStartsWithPerc) key = key.substring(3);
+      boEndsWithPerc = key.endsWith("__x");
+      if(boEndsWithPerc) key = key.substring(0, key.length() - 3);
       
-      boolean boToUpper = sKey.endsWith("__u");
-      if(boToUpper) sKey = sKey.substring(0, sKey.length() - 3);
-      boolean boToLower = sKey.endsWith("__l");
-      if(boToLower) sKey = sKey.substring(0, sKey.length() - 3);
+      boolean boToUpper = key.endsWith("__u");
+      if(boToUpper) key = key.substring(0, key.length() - 3);
+      boolean boToLower = key.endsWith("__l");
+      if(boToLower) key = key.substring(0, key.length() - 3);
       
-      boolean boBAE  = sKey.endsWith("__bae"); // Begins AND Ends
-      boolean boBOE  = sKey.endsWith("__boe"); // Begins OR  Ends
-      boolean boNOB  = sKey.endsWith("__nob"); // Not Begins
-      boolean boNOE  = sKey.endsWith("__noe"); // Not Ends
-      boolean boGTE  = sKey.endsWith("__gte");
-      boolean boLTE  = sKey.endsWith("__lte");
-      boolean boNE   = sKey.endsWith("__neq");
-      if(!boNE) boNE = sKey.endsWith("__not");
+      boolean boBAE  = key.endsWith("__bae"); // Begins AND Ends
+      boolean boBOE  = key.endsWith("__boe"); // Begins OR  Ends
+      boolean boNOB  = key.endsWith("__nob"); // Not Begins
+      boolean boNOE  = key.endsWith("__noe"); // Not Ends
+      boolean boGTE  = key.endsWith("__gte");
+      boolean boLTE  = key.endsWith("__lte");
+      boolean boNE   = key.endsWith("__neq");
+      if(!boNE) boNE = key.endsWith("__not");
       if(boBAE || boBOE || boNOB || boNOE || boGTE || boLTE || boNE) {
-        sKey = sKey.substring(0, sKey.length() - 5);
+        key = key.substring(0, key.length() - 5);
       }
       
-      boolean boGT  = sKey.endsWith("__gt");
-      boolean boLT  = sKey.endsWith("__lt");
-      if(boGT || boLT) sKey = sKey.substring(0, sKey.length() - 4);
+      boolean boGT  = key.endsWith("__gt");
+      boolean boLT  = key.endsWith("__lt");
+      if(boGT || boLT) key = key.substring(0, key.length() - 4);
       
       boolean boLike = false;
       String value   = null;
@@ -561,7 +683,7 @@ public class DB {
       }
       
       if((boNOB || boNOE) && value.length() > 2) {
-        sbResult.append(sKey.toUpperCase());
+        sbResult.append(key.toUpperCase());
         sbResult.append(" NOT LIKE ");
         if(boNOB) {
           sbResult.append(value.substring(0, value.length()-1) + "%'");
@@ -574,7 +696,7 @@ public class DB {
       }
       else if((boBAE || boBOE) && value.length() > 2) {
         sbResult.append("(");
-        sbResult.append(sKey.toUpperCase());
+        sbResult.append(key.toUpperCase());
         sbResult.append(" LIKE ");
         sbResult.append(value.substring(0, value.length()-1) + "%'");
         if(boBOE) {
@@ -583,14 +705,14 @@ public class DB {
         else {
           sbResult.append(" AND ");
         }
-        sbResult.append(sKey.toUpperCase());
+        sbResult.append(key.toUpperCase());
         sbResult.append(" LIKE ");
         sbResult.append("'%" + value.substring(1));
         sbResult.append(") AND ");
         continue;
       }
       
-      sbResult.append(sKey.toUpperCase());
+      sbResult.append(key.toUpperCase());
       if(boNE) {
         sbResult.append(" <> ");
       }
@@ -623,7 +745,7 @@ public class DB {
     return result;
   }
   
-  protected static
+  private static
   long count(Connection conn, String sSQL)
     throws Exception
   {
@@ -677,7 +799,7 @@ public class DB {
     return result;
   }
   
-  protected static
+  private static
   void skip(ResultSet rs, int numberOfElements)
     throws Exception
   {
@@ -691,24 +813,7 @@ public class DB {
     }
   }
   
-  protected static
-  Set<String> getEncryptedFields(String table, Map<String, Object> mapFilter)
-  {
-    Set<String> result = new HashSet<String>();
-    if(mapFilter == null) return result;
-    for(int i = 1; i <= 10; i++) {
-      Object field = mapFilter.remove("_" + i);
-      if(field instanceof String) {
-        String sField = (String) field;
-        if(sField.length() > 0) {
-          result.add(sField.trim().replace('-', '.').toUpperCase());
-        }
-      }
-    }
-    return result;
-  }
-  
-  protected static
+  private static
   Set<String> getBooleanFields(String table, Map<String, Object> mapFilter)
   {
     Set<String> result = new HashSet<String>();
@@ -725,179 +830,8 @@ public class DB {
     return result;
   }
   
-  protected static
-  Set<String> getStringDateFields(String table, Map<String, Object> mapFilter)
-  {
-    Set<String> result = new HashSet<String>();
-    if(mapFilter == null) return result;
-    for(int i = 1; i <= 10; i++) {
-      Object field = mapFilter.remove("_d" + i);
-      if(field instanceof String) {
-        String sField = (String) field;
-        if(sField.length() > 0) {
-          result.add(sField.trim().replace('-', '.').toUpperCase());
-        }
-      }
-    }
-    return result;
-  }
-  
-  protected static
-  byte[] getBLOBContent(ResultSet rs, int index)
-    throws Exception
-  {
-    Blob blob = rs.getBlob(index);
-    if(blob == null) return null;
-    
-    InputStream is = blob.getBinaryStream();
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    byte[] abDataBuffer = new byte[1024];
-    int iBytesRead = 0;
-    while((iBytesRead = is.read(abDataBuffer, 0, abDataBuffer.length)) != -1) {
-      baos.write(abDataBuffer, 0, iBytesRead);
-    }
-    baos.flush();
-    
-    return baos.toByteArray();
-  }
-  
-  protected static
-  Map<String, Object> toMap(ResultSet rs)
-    throws Exception
-  {
-    Map<String, Object> mapResult = null;
-    
-    List<String> listFields = new ArrayList<String>();
-    try {
-      ResultSetMetaData rsmd = rs.getMetaData();
-      int iColumnCount = rsmd.getColumnCount();
-      if(rs.next()) {
-        mapResult = new HashMap<String, Object>();
-        for(int i = 1; i <= iColumnCount; i++) {
-          String sField  = rsmd.getColumnName(i);
-          int iFieldType = rsmd.getColumnType(i);
-          if(iFieldType == java.sql.Types.CHAR || iFieldType == java.sql.Types.VARCHAR) {
-            mapResult.put(sField, rs.getString(i));
-          }
-          else if(iFieldType == java.sql.Types.DATE) {
-            mapResult.put(sField, rs.getDate(i));
-          }
-          else if(iFieldType == java.sql.Types.TIME || iFieldType == java.sql.Types.TIMESTAMP) {
-            mapResult.put(sField, rs.getTimestamp(i));
-          }
-          else if(iFieldType == java.sql.Types.BINARY || iFieldType == java.sql.Types.BLOB || iFieldType == java.sql.Types.CLOB) {
-            mapResult.put(sField, getBLOBContent(rs, i));
-          }
-          else {
-            String sValue = rs.getString(i);
-            if(sValue != null) {
-              if(sValue.indexOf('.') >= 0 || sValue.indexOf(',') >= 0) {
-                mapResult.put(sField, rs.getDouble(i));
-              }
-              else {
-                mapResult.put(sField, rs.getInt(i));
-              }
-            }
-            else {
-              mapResult.put(sField, null);
-            }
-          }
-          listFields.add(sField);
-        }
-      }
-    }
-    finally {
-      if(rs  != null) try{ rs.close();  } catch(Exception ex) {}
-    }
-    return mapResult;
-  }
-  
-  protected static
-  String getSQLMultiString(String field, String values)
-  {
-    String sqlValues = getSQLMultiString(values);
-    if(sqlValues == null || sqlValues.length() == 0) {
-      // Restituire stringa vuota (per capire se filtro e' valorizzato)
-      return "";
-    }
-    if(sqlValues.indexOf(',') > 0) {
-      return field + " IN (" + sqlValues + ")";
-    }
-    return field + "=" + sqlValues;
-  }
-  
-  protected static
-  String getSQLMultiString(String values)
-  {
-    if(values == null) {
-      // Restituire stringa vuota (per capire se filtro e' valorizzato)
-      return "";
-    }
-    values = values.trim();
-    if(values.length() == 0) {
-      // Restituire stringa vuota (per capire se filtro e' valorizzato)
-      return "";
-    }
-    if(values.indexOf(',') >= 0) {
-      return getSQLMultiString(values, ',');
-    }
-    if(values.indexOf(' ') >= 0) {
-      return getSQLMultiString(values, ' ');
-    }
-    return "'" + values + "'";
-  }
-  
-  protected static
-  String getSQLMultiString(String values, char sep)
-  {
-    // Restituire stringa vuota (per capire se filtro e' valorizzato)
-    if(values == null) return "";
-    StringBuilder sb = new StringBuilder();
-    int iIndexOf = 0;
-    int iBegin   = 0;
-    iIndexOf     = values.indexOf(sep);
-    while(iIndexOf >= 0) {
-      String value = values.substring(iBegin, iIndexOf).trim();
-      if(value.length() > 0) {
-        sb.append(",'" + value.replace("'", "''") + "'");
-      }
-      iBegin = iIndexOf + 1;
-      iIndexOf = values.indexOf(sep, iBegin);
-    }
-    String value = values.substring(iBegin).trim();
-    if(value.length() > 0) {
-      sb.append(",'" + value.replace("'", "''") + "'");
-    }
-    if(sb.length() > 0) return sb.substring(1);
-    // Restituire stringa vuota (per capire se filtro e' valorizzato)
-    return "";
-  }
-  
-  protected static
-  String sqlInParams(String field, List<?> values)
-  {
-    if(field == null || field.length() == 0) {
-      return "";
-    }
-    if(values == null) {
-      return "";
-    }
-    int size = values.size();
-    if(size == 0) {
-      return "";
-    }
-    if(size == 1) {
-      return field + "=?";
-    }
-    StringBuilder params = new StringBuilder();
-    for(int i = 0; i < size; i++) {
-      params.append(",?");
-    }
-    return field + " IN (" + params.substring(1) + ")";
-  }
-  
   @SuppressWarnings("unchecked")
-  protected static
+  private static
   Map<String, Object> toMap(Object value) 
   {
     if(value == null) return null;
@@ -907,7 +841,7 @@ public class DB {
     return null;
   }
   
-  protected static
+  private static
   List<String> toListOfString(Object value) 
   {
     if(value == null) return null;
@@ -956,14 +890,14 @@ public class DB {
     return result;
   }
   
-  protected static
+  private static
   String toString(Object value) 
   {
     if(value == null) return null;
     return value.toString();
   }
   
-  protected static
+  private static
   int toInt(Object value, int defaultValue) 
   {
     if(value == null) return defaultValue;
@@ -980,7 +914,7 @@ public class DB {
     return defaultValue;
   }
   
-  protected static
+  private static
   String toSQLDate(Calendar cal)
   {
     if(cal == null) return "NULL";
@@ -996,10 +930,13 @@ public class DB {
     String sHour   = iHour   < 10 ? "0" + iHour   : String.valueOf(iHour);
     String sMinute = iMinute < 10 ? "0" + iMinute : String.valueOf(iMinute);
     String sSecond = iSecond < 10 ? "0" + iSecond : String.valueOf(iSecond);
+    if(DBMS != null && !DBMS.equals("oracle")) {
+      return "'" + iYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMinute + ":" + sSecond + "'";
+    }
     return "TO_DATE('" + iYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMinute + ":" + sSecond + "','YYYY-MM-DD HH24:MI:SS')";
   }
   
-  protected static
+  private static
   String toSQLDate(Calendar cal, Calendar calTime)
   {
     if(cal == null) return "NULL";
@@ -1025,10 +962,13 @@ public class DB {
     String sHour   = iHour   < 10 ? "0" + iHour   : String.valueOf(iHour);
     String sMinute = iMinute < 10 ? "0" + iMinute : String.valueOf(iMinute);
     String sSecond = iSecond < 10 ? "0" + iSecond : String.valueOf(iSecond);
+    if(DBMS != null && !DBMS.equals("oracle")) {
+      return "'" + iYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMinute + ":" + sSecond + "'";
+    }
     return "TO_DATE('" + iYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMinute + ":" + sSecond + "','YYYY-MM-DD HH24:MI:SS')";
   }
   
-  protected static
+  private static
   String toSQLDate(Date date)
   {
     if(date == null) return "NULL";
@@ -1040,10 +980,13 @@ public class DB {
     int iDay   = cal.get(Calendar.DAY_OF_MONTH);
     String sMonth = iMonth < 10 ? "0" + iMonth : String.valueOf(iMonth);
     String sDay   = iDay   < 10 ? "0" + iDay   : String.valueOf(iDay);
+    if(DBMS != null && !DBMS.equals("oracle")) {
+      return "'" + iYear + "-" + sMonth + "-" + sDay + "'";
+    }
     return "TO_DATE('" + iYear + "-" + sMonth + "-" + sDay + "','YYYY-MM-DD')";
   }
   
-  protected static
+  private static
   String toSQLDate(Date date, Calendar calTime)
   {
     if(date == null) return "NULL";
@@ -1054,7 +997,7 @@ public class DB {
     return toSQLDate(cal, calTime);
   }
   
-  protected static
+  private static
   String decodeBoolean(Boolean value)
   {
     if(value == null) return "";
@@ -1062,13 +1005,7 @@ public class DB {
     return "0";
   }
   
-  protected static
-  String decodeBoolean(boolean value)
-  {
-    return value ? "1" : "0";
-  }
-  
-  protected static
+  private static
   boolean toBoolean(Object value, boolean defaultValue) 
   {
     if(value == null) return defaultValue;
@@ -1082,7 +1019,7 @@ public class DB {
     return "1TtYySsVv".indexOf(c0) >= 0;
   }
   
-  protected static
+  private static
   Boolean toBooleanObj(String value, Boolean defaultValue) 
   {
     if(value == null || value.length() == 0) return defaultValue;
@@ -1092,7 +1029,7 @@ public class DB {
     return "1TtYySsVv".indexOf(c0) >= 0;
   }
   
-  protected static
+  private static
   Calendar toCalendar(String text) 
   {
     if(text == null || text.length() < 8) {
@@ -1133,7 +1070,7 @@ public class DB {
     return new GregorianCalendar(yyyy, mm-1, dd);
   }
   
-  protected static
+  private static
   List<Integer> getNumbers(String text) 
   {
     List<Integer> result = new ArrayList<Integer>();
@@ -1152,7 +1089,7 @@ public class DB {
           result.add(number);
         }
         catch(Exception ex) {
-          System.err.println("Exception in parsing " + curr + " in getNumbers(" + text + "): " + ex);
+          log("[ReportService] Exception in parsing " + curr + " in getNumbers(" + text + "): " + ex);
         }
         curr = new StringBuilder();
       }
@@ -1163,13 +1100,13 @@ public class DB {
         result.add(number);
       }
       catch(Exception ex) {
-        System.err.println("Exception in parsing " + curr + " in getNumbers(" + text + "): " + ex);
+        log("[ReportService] Exception in parsing " + curr + " in getNumbers(" + text + "): " + ex);
       }
     }
     return result;
   }
   
-  protected static
+  private static
   List<Integer> indexOf(List<String> list0, List<String> list1)
   {
     List<Integer> result = new ArrayList<Integer>();
@@ -1199,7 +1136,7 @@ public class DB {
     return result;
   }
   
-  protected static
+  private static
   String getGroupValues(List<Object> record, List<Integer> indexes)
   {
     if(record == null || record.size() == 0) {
@@ -1220,7 +1157,7 @@ public class DB {
     return result;
   }
   
-  protected static
+  private static
   void concat(List<Object> record0, List<Object> record1, int index)
   {
     if(record0 == null || record0.size() <= index) {
@@ -1250,5 +1187,22 @@ public class DB {
         record0.set(index, o0 + "," + o1);
       }
     }
+  }
+  
+  private static void log(String message) {
+    Calendar cal = Calendar.getInstance();
+    int iYear  = cal.get(Calendar.YEAR);
+    int iMonth = cal.get(Calendar.MONTH) + 1;
+    int iDay   = cal.get(Calendar.DATE);
+    int iHour  = cal.get(Calendar.HOUR_OF_DAY);
+    int iMin   = cal.get(Calendar.MINUTE);
+    int iSec   = cal.get(Calendar.SECOND);
+    String sYear  = String.valueOf(iYear);
+    String sMonth = iMonth < 10 ? "0" + iMonth : String.valueOf(iMonth);
+    String sDay   = iDay   < 10 ? "0" + iDay   : String.valueOf(iDay);
+    String sHour  = iHour  < 10 ? "0" + iHour  : String.valueOf(iHour);
+    String sMin   = iMin   < 10 ? "0" + iMin   : String.valueOf(iMin);
+    String sSec   = iSec   < 10 ? "0" + iSec   : String.valueOf(iSec);
+    System.out.println(sYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMin + ":" + sSec + " " + message);
   }
 }

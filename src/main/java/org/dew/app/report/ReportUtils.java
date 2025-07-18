@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -28,7 +29,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 
 public
-class ExportAs
+class ReportUtils
 {
   public static String YES_VALUE      = "X";
   public static String NO_VALUE       = "";
@@ -44,7 +45,67 @@ class ExportAs
   public static String CSV_DELIMITER  = "";
   
   public static
-  byte[] any(List<List<Object>> listData, String title, String type)
+  Map<String, Object> exportMap(List<List<Object>> listData, Map<String, Object> parameters)
+  {
+    String title  = getString(parameters, "title", "Report");
+    String type   = getString(parameters, "type",  "xlsx");
+    String copyTo = getString(parameters, "copyTo", null);
+    
+    byte[] content = export(listData, title, type);
+    
+    if(copyTo != null && copyTo.length() > 0) {
+      String filePath = copyTo;
+      if(copyTo.indexOf('/') < 0 && copyTo.indexOf('\\') < 0) {
+        filePath = ReportUtils.getDesktopPath(copyTo);
+      }
+      try {
+        saveContent(content, filePath);
+      }
+      catch(Exception ex) {
+        ex.printStackTrace();
+      }
+    }
+    
+    int rows = listData != null ? listData.size() : 0;
+    
+    String base64 = Base64.getEncoder().encodeToString(content);
+    
+    Map<String, Object> result = new HashMap<String, Object>();
+    result.put("content", base64);
+    result.put("title",   title);
+    result.put("type",    type);
+    result.put("rows",    rows);
+    
+    return result;
+  }
+  
+  public static
+  byte[] export(List<List<Object>> listData, Map<String, Object> parameters)
+  {
+    String title  = getString(parameters, "title", "Report");
+    String type   = getString(parameters, "type",  "xlsx");
+    String copyTo = getString(parameters, "copyTo", null);
+    
+    byte[] result = export(listData, title, type);
+    
+    if(copyTo != null && copyTo.length() > 0) {
+      String filePath = copyTo;
+      if(copyTo.indexOf('/') < 0 && copyTo.indexOf('\\') < 0) {
+        filePath = ReportUtils.getDesktopPath(copyTo);
+      }
+      try {
+        saveContent(result, filePath);
+      }
+      catch(Exception ex) {
+        ex.printStackTrace();
+      }
+    }
+    
+    return result;
+  }
+  
+  public static
+  byte[] export(List<List<Object>> listData, String title, String type)
   {
     if(type == null || type.length() == 0) {
       return csv(listData);
@@ -107,6 +168,15 @@ class ExportAs
       sb.append((char) 10);
     }
     return sb.toString().getBytes();
+  }
+  
+  private static
+  String getString(Map<String, Object> parameters, String key, String defaultValue)
+  {
+    if(parameters == null) return defaultValue;
+    Object value = parameters.get(key);
+    if(value == null) return defaultValue;
+    return value.toString();
   }
   
   private static

@@ -787,6 +787,61 @@ var APP;
     }(WUX.WComponent));
     APP.GUILogs = GUILogs;
 })(APP || (APP = {}));
+var APP;
+(function (APP) {
+    var GUIReport = /** @class */ (function (_super) {
+        __extends(GUIReport, _super);
+        function GUIReport() {
+            return _super.call(this, '*', 'GUIReport') || this;
+        }
+        GUIReport.prototype.render = function () {
+            var _this = this;
+            this.brcr = new APP.Breadcrumb();
+            this.brcr.add('Report');
+            this.form = new WUX.WForm(this.subId('form'));
+            this.form
+                .addRow()
+                .addDateField('id_comune', 'Id comune')
+                .addDateField('fiscale', 'Fiscale')
+                .addRow()
+                .addTextField('descrizione__x', 'Denominazione', { "span": 2 });
+            this.btnExport = new WUX.WButton(this.subId('btnFind'), 'Genera Report', 'fa-file-excel', 'btn-icon btn btn-primary', 'margin-right: 0.5rem;');
+            this.btnExport.on('click', function (e) {
+                var report = {
+                    "table": 'ana_comuni',
+                    "fields": ['id_comune', 'fiscale', 'provincia', 'descrizione'],
+                    "filter": _this.form.getState(),
+                    "orderBy": 'descrizione',
+                    "maxRows": 50,
+                    "headers": true,
+                    "paging": false
+                };
+                APP.http.post('report/export', report, function (data) {
+                    console.log('Response:', data);
+                    if (data && data.content) {
+                        WUX.saveFile(data.content, 'log.xlsx');
+                        APP.showSuccess('Report generato con successo.');
+                    }
+                    else {
+                        APP.showError('Conenuto non disponibile o vuoto.');
+                    }
+                });
+            });
+            this.main = new WUX.WContainer();
+            this.main
+                .before(this.brcr)
+                .addRow()
+                .addCol('col-md-12')
+                .add(this.form)
+                .addRow()
+                .addCol('col-md-8')
+                .addGroup({ "classStyle": "form-row" }, this.btnExport);
+            return this.main;
+        };
+        return GUIReport;
+    }(WUX.WComponent));
+    APP.GUIReport = GUIReport;
+})(APP || (APP = {}));
 var __assign = (this && this.__assign) || function () {
     __assign = Object.assign || function(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {

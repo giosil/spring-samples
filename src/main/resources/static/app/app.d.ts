@@ -120,6 +120,33 @@ declare namespace APP {
     }
 }
 declare namespace APP {
+    interface ReportReq {
+        table: string;
+        title?: string;
+        type?: 'xls' | 'xlsx' | 'csv';
+        fields?: string[];
+        filter?: any;
+        orderBy?: string;
+        maxRows?: number;
+        headers?: boolean;
+        paging?: boolean;
+    }
+    interface ReportRes {
+        title?: string;
+        type?: string;
+        rows?: number;
+        content?: string;
+    }
+    class GUIReport extends WUX.WComponent {
+        main: WUX.WContainer;
+        brcr: Breadcrumb;
+        form: WUX.WForm;
+        btnExport: WUX.WButton;
+        constructor();
+        render(): WUX.WContainer;
+    }
+}
+declare namespace APP {
     class Mock {
         dat: {
             [coll: string]: any[];
