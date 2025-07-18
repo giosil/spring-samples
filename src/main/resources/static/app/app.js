@@ -853,7 +853,7 @@ var APP;
             var report = {
                 "table": 'APP_LOG',
                 "title": 'Report Operazioni',
-                "fields": ['CODICE_FISCALE', 'LOG_OPERAZIONE', 'LOG_FUNZIONE'],
+                "fields": ['UTENTE', 'LOG_OPERAZIONE', 'LOG_FUNZIONE'],
                 "filter": filter,
                 "orderBy": 'LOG_DATA DESC',
                 "maxRows": 50,
@@ -861,18 +861,30 @@ var APP;
                 "paging": false,
                 "groupBy": []
             };
+            var report_log = {
+                "report": 'log',
+                "filter": filter,
+            };
             if (filter && filter['__preview__']) {
                 APP.http.post('report/select', report, function (data) {
                     console.log('Response:', data);
                     if (data && data.length > 0) {
                         // Remove first row (headers)
                         var dh = data.shift();
-                        var ks = [];
+                        var h = [];
+                        var k = [];
                         for (var i = 0; i < dh.length; i++) {
-                            ks.push('' + i);
+                            if (typeof dh[i] == 'string') {
+                                h.push(dh[i]);
+                                k.push('' + i);
+                            }
+                            else {
+                                // The header may contains (if paging=true) count, maxRows and pages 
+                                break;
+                            }
                         }
-                        _this.table.header = dh;
-                        _this.table.keys = ks;
+                        _this.table.header = h;
+                        _this.table.keys = k;
                         _this.table.setState(data);
                         APP.showSuccess('Report generato con successo.');
                     }

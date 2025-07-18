@@ -121,10 +121,12 @@ declare namespace APP {
 }
 declare namespace APP {
     interface ReportReq {
-        table: string;
+        report?: string;
+        table?: string;
         title?: string;
         type?: 'xls' | 'xlsx' | 'csv';
         fields?: string[];
+        clause?: string;
         filter?: any;
         orderBy?: string;
         maxRows?: number;

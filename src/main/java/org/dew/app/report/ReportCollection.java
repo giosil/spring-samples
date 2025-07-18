@@ -15,9 +15,9 @@ public class ReportCollection {
     }
     
     if(report.equalsIgnoreCase("log")) {
-      result.put("table",   "HCMSYS_LOG");
+      result.put("table",   "APP_LOG");
       result.put("title",   "Report Operazioni");
-      result.put("fields",  "CODICE_FISCALE,LOG_OPERAZIONE,LOG_FUNZIONE");
+      result.put("fields",  "UTENTE,LOG_OPERAZIONE,LOG_FUNZIONE");
       result.put("clause",  "LOG_ECCEZIONE IS NULL");
       result.put("orderBy", "LOG_DATA DESC");
       result.put("maxRows", 50);

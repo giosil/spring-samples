@@ -1,10 +1,12 @@
 namespace APP {
 
 	export interface ReportReq {
-		table: string;
+		report?: string;
+		table?: string;
 		title?: string;
 		type?: 'xls' | 'xlsx' | 'csv';
 		fields?: string[];
+		clause?: string;
 		filter?: any;
 		orderBy?: string;
 		maxRows?: number;
@@ -103,14 +105,19 @@ namespace APP {
 			let report: ReportReq = {
 				"table": 'APP_LOG',
 				"title": 'Report Operazioni',
-				"fields": ['CODICE_FISCALE', 'LOG_OPERAZIONE', 'LOG_FUNZIONE'],
+				"fields": ['UTENTE', 'LOG_OPERAZIONE', 'LOG_FUNZIONE'],
 				"filter": filter,
 				"orderBy": 'LOG_DATA DESC',
 				"maxRows": 50,
 				"headers": true,
 				"paging": false,
 				"groupBy": []
-			}
+			};
+
+			let report_log: ReportReq = {
+				"report": 'log',
+				"filter": filter,
+			};
 
 			if(filter && filter['__preview__']) {
 				http.post('report/select', report, (data: [][]) => {
@@ -118,12 +125,20 @@ namespace APP {
 					if(data && data.length > 0) {
 						// Remove first row (headers)
 						let dh = data.shift();
-						let ks = [];
+						let h = [];
+						let k = [];
 						for(let i = 0; i < dh.length; i++) {
-							ks.push('' + i);
+							if(typeof dh[i] == 'string') {
+								h.push(dh[i]);
+								k.push('' + i);
+							}
+							else {
+								// The header may contains (if paging=true) count, maxRows and pages 
+								break;
+							}
 						}
-						this.table.header = dh;
-						this.table.keys = ks;
+						this.table.header = h;
+						this.table.keys = k;
 						this.table.setState(data);
 						showSuccess('Report generato con successo.');
 					} else {
