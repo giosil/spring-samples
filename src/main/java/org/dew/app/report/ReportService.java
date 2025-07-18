@@ -54,6 +54,16 @@ public class ReportService {
       log("Missing parameters");
       return new ArrayList<List<Object>>(0);
     }
+    
+    String report = toString(parameters.get("report"));
+    if(report != null && report.length() > 0) {
+      Map<String, Object> reportParams = ReportCollection.getParameters(report);
+      if(reportParams != null && !reportParams.isEmpty()) {
+        reportParams.putAll(parameters);
+        parameters = reportParams;
+      }
+    }
+    
     String table = toString(parameters.get("table"));
     if(table == null || table.length() == 0) {
       log("Missing table in parameters");
@@ -73,6 +83,11 @@ public class ReportService {
       }
     }
     
+    String clause = toString(parameters.get("clause"));
+    if(clause != null && clause.length() > 0) {
+      if(mapFilter == null) mapFilter = new HashMap<String, Object>();
+      mapFilter.put("__clause__", clause);
+    }
     Object paging = parameters.get("paging");
     if(paging != null) {
       if(mapFilter == null) mapFilter = new HashMap<String, Object>();
