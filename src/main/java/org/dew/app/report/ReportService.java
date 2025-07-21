@@ -154,6 +154,7 @@ public class ReportService {
     if(table.indexOf("--") >= 0 || table.indexOf('/') >= 0) {
       return new ArrayList<List<Object>>(0);
     }
+    long startTime = System.currentTimeMillis();
     if(mapFilter == null) {
       mapFilter = new HashMap<String, Object>();
     }
@@ -356,7 +357,8 @@ public class ReportService {
         if(rows >= maxRows) break;
       }
       
-      log("select " + table + " maxRows=" + maxRows + ",includeHeader=" + includeHeader + ",rows=" + rows);
+      long elapsed = System.currentTimeMillis() - startTime;
+      log("select " + table + " maxRows=" + maxRows + ",includeHeader=" + includeHeader + ",rows=" + rows + " (elapsed=" + elapsed + " ms)");
     }
     catch(Exception ex) {
       log("Exception: " + ex);
