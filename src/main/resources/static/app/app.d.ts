@@ -126,6 +126,7 @@ declare namespace APP {
         title?: string;
         type?: 'xls' | 'xlsx' | 'csv';
         fields?: string[];
+        cols?: string[];
         clause?: string;
         filter?: any;
         orderBy?: string;

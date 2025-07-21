@@ -31,13 +31,16 @@ import org.apache.poi.ss.usermodel.Workbook;
 public
 class ReportUtils
 {
-  public static String YES_VALUE      = "X";
-  public static String NO_VALUE       = "";
+  public static String  YES_VALUE      = "X";
+  public static String  NO_VALUE       = "";
   
-  public static int    BOOL_COL_WIDTH = 4000;
-  public static int    NUM_COL_WIDTH  = 5000;
-  public static int    DATE_COL_WIDTH = 6000;
-  public static int    STR_COL_WIDTH  = 8000;
+  public static int     BOOL_COL_WIDTH = 4000;
+  public static int     NUM_COL_WIDTH  = 5000;
+  public static int     DATE_COL_WIDTH = 6000;
+  public static int     STR_COL_WIDTH  = 8000;
+  
+  public static boolean CELL_BORDER    = false;
+  public static boolean HEADER_GRAY    = false;
   
   public static String DATE_FORMAT    = "dd/mm/yyyy";
   
@@ -269,7 +272,7 @@ class ReportUtils
       workBook.write(result);
     }
     catch(Exception ex) {
-      System.err.println("ExportAs.excel: " + ex);
+      ReportService.log("ReportUtils", "fill: " + ex);
     }
     return result.toByteArray();
   }
@@ -311,9 +314,16 @@ class ReportUtils
     mapResult.put("whitel",  createStyle(workBook, false, HorizontalAlignment.LEFT,     false));
     mapResult.put("whiter",  createStyle(workBook, false, HorizontalAlignment.RIGHT,    false));
     mapResult.put("whited",  createStyle(workBook, false, HorizontalAlignment.LEFT,     DATE_FORMAT));
-    mapResult.put("headerc", createStyle(workBook, true,  (short) HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex(), HorizontalAlignment.CENTER, true));
-    mapResult.put("headerl", createStyle(workBook, true,  (short) HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex(), HorizontalAlignment.LEFT,   true));
-    mapResult.put("headerr", createStyle(workBook, true,  (short) HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex(), HorizontalAlignment.RIGHT));
+    if(HEADER_GRAY) {
+      mapResult.put("headerc", createStyle(workBook, true, (short) HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex(), HorizontalAlignment.CENTER, true));
+      mapResult.put("headerl", createStyle(workBook, true, (short) HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex(), HorizontalAlignment.LEFT,   true));
+      mapResult.put("headerr", createStyle(workBook, true, (short) HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex(), HorizontalAlignment.RIGHT));
+    }
+    else {
+      mapResult.put("headerc", createStyle(workBook, true, HorizontalAlignment.CENTER, true));
+      mapResult.put("headerl", createStyle(workBook, true, HorizontalAlignment.LEFT,   true));
+      mapResult.put("headerr", createStyle(workBook, true, HorizontalAlignment.RIGHT,  true));
+    }
     return mapResult;
   }
   
@@ -329,10 +339,12 @@ class ReportUtils
     cellStyle.setFont(font);
     cellStyle.setWrapText(boWrapText);
     cellStyle.setAlignment(alignment);
-    cellStyle.setBorderBottom(BorderStyle.THIN);
-    cellStyle.setBorderTop(BorderStyle.THIN);
-    cellStyle.setBorderLeft(BorderStyle.THIN);
-    cellStyle.setBorderRight(BorderStyle.THIN);
+    if(CELL_BORDER) {
+      cellStyle.setBorderBottom(BorderStyle.THIN);
+      cellStyle.setBorderTop(BorderStyle.THIN);
+      cellStyle.setBorderLeft(BorderStyle.THIN);
+      cellStyle.setBorderRight(BorderStyle.THIN);
+    }
     return cellStyle;
   }
   
@@ -351,10 +363,12 @@ class ReportUtils
       cellStyle.setDataFormat(createHelper.createDataFormat().getFormat(dataFormat));
     }
     cellStyle.setAlignment(alignment);
-    cellStyle.setBorderBottom(BorderStyle.THIN);
-    cellStyle.setBorderTop(BorderStyle.THIN);
-    cellStyle.setBorderLeft(BorderStyle.THIN);
-    cellStyle.setBorderRight(BorderStyle.THIN);
+    if(CELL_BORDER) {
+      cellStyle.setBorderBottom(BorderStyle.THIN);
+      cellStyle.setBorderTop(BorderStyle.THIN);
+      cellStyle.setBorderLeft(BorderStyle.THIN);
+      cellStyle.setBorderRight(BorderStyle.THIN);
+    }
     return cellStyle;
   }
   
@@ -372,10 +386,12 @@ class ReportUtils
     cellStyle.setFillForegroundColor((short) background);
     cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
     cellStyle.setAlignment(alignment);
-    cellStyle.setBorderBottom(BorderStyle.THIN);
-    cellStyle.setBorderTop(BorderStyle.THIN);
-    cellStyle.setBorderLeft(BorderStyle.THIN);
-    cellStyle.setBorderRight(BorderStyle.THIN);
+    if(CELL_BORDER) {
+      cellStyle.setBorderBottom(BorderStyle.THIN);
+      cellStyle.setBorderTop(BorderStyle.THIN);
+      cellStyle.setBorderLeft(BorderStyle.THIN);
+      cellStyle.setBorderRight(BorderStyle.THIN);
+    }
     return cellStyle;
   }
   
@@ -393,10 +409,12 @@ class ReportUtils
     cellStyle.setFillForegroundColor((short) background);
     cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
     cellStyle.setAlignment(alignment);
-    cellStyle.setBorderBottom(BorderStyle.THIN);
-    cellStyle.setBorderTop(BorderStyle.THIN);
-    cellStyle.setBorderLeft(BorderStyle.THIN);
-    cellStyle.setBorderRight(BorderStyle.THIN);
+    if(CELL_BORDER) {
+      cellStyle.setBorderBottom(BorderStyle.THIN);
+      cellStyle.setBorderTop(BorderStyle.THIN);
+      cellStyle.setBorderLeft(BorderStyle.THIN);
+      cellStyle.setBorderRight(BorderStyle.THIN);
+    }
     return cellStyle;
   }
   

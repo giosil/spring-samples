@@ -72,6 +72,7 @@ public class ReportService {
     
     Map<String, Object> mapFilter = toMap(parameters.get("filter"));
     List<String> listFields       = toListOfString(parameters.get("fields"));
+    List<String> listCols         = toListOfString(parameters.get("cols"));
     List<String> listGroupBy      = toListOfString(parameters.get("groupBy"));
     String       orderBy          = toString(parameters.get("orderBy"));
     int          maxRows          = toInt(parameters.get("maxRows"), 0);
@@ -116,9 +117,23 @@ public class ReportService {
         else {
           for(int j = 0; j < record.size(); j++) {
             if(listIndex.indexOf(j) >= 0) continue;
-            concat(recordG, record, j);
+            groupFunction(recordG, record, j);
           }
           iterator.remove();
+        }
+      }
+    }
+    
+    if(includeHeader && listCols != null && listCols.size() > 0) {
+      if(result != null && result.size() > 0) {
+        List<Object> header = result.get(0);
+        for(int i = 0; i < listCols.size(); i++) {
+          if(header.size() > i) {
+            Object hi = header.get(i);
+            if(hi instanceof String) {
+              header.set(i, listCols.get(i));
+            }
+          }
         }
       }
     }
@@ -305,9 +320,10 @@ public class ReportService {
         }
         listHeader.add(columnName);
         columnTypes[i] = rsmd.getColumnType(i + 1);
+        log(columnName + "," + columnTypes[i]);
       }
       if(includeHeader) {
-        listResult.add(listHeader);  
+        listResult.add(listHeader);
       }
       
       while(rs.next()) {
@@ -316,6 +332,15 @@ public class ReportService {
           int t = columnTypes[i];
           if(t == Types.BINARY || t == Types.BLOB || t == Types.CLOB) {
             listRecord.add("<BLOB>");
+          }
+          else if(t == Types.NUMERIC || t == Types.INTEGER || t == Types.SMALLINT || t == Types.DECIMAL || t == Types.DOUBLE || t == Types.FLOAT) {
+            listRecord.add(rs.getObject(i + 1));
+          }
+          else if(t == Types.DATE) {
+            listRecord.add(formatDate(rs.getDate(i + 1)));
+          }
+          else if(t == Types.TIME || t == Types.TIMESTAMP) {
+            listRecord.add(formatDateTime(rs.getDate(i + 1)));
           }
           else {
             if(setBlnFieldIdxs.contains(i)) {
@@ -1056,6 +1081,74 @@ public class ReportService {
   }
   
   private static
+  String formatDate(Date date)
+  {
+    if(date == null) return "";
+    Calendar cal = Calendar.getInstance();
+    cal.setTimeInMillis(date.getTime());
+    return formatDate(cal);
+  }
+  
+  private static
+  String formatDate(Calendar cal)
+  {
+    if(cal == null) return "";
+    int iYear  = cal.get(Calendar.YEAR);
+    int iMonth = cal.get(Calendar.MONTH) + 1;
+    int iDay   = cal.get(Calendar.DATE);
+    String sYear  = String.valueOf(iYear);
+    String sMonth = iMonth < 10 ? "0" + iMonth : String.valueOf(iMonth);
+    String sDay   = iDay   < 10 ? "0" + iDay   : String.valueOf(iDay);
+    if(iYear < 10) {
+      sYear = "000" + sYear;
+    }
+    else if(iYear < 100) {
+      sYear = "00" + sYear;
+    }
+    else if(iYear < 1000) {
+      sYear = "0" + sYear;
+    }
+    return sDay + "/" + sMonth + "/" + sYear;
+  }
+  
+  private static
+  String formatDateTime(Date date)
+  {
+    if(date == null) return "";
+    Calendar cal = Calendar.getInstance();
+    cal.setTimeInMillis(date.getTime());
+    return formatDateTime(cal);
+  }
+  
+  private static
+  String formatDateTime(Calendar cal)
+  {
+    if(cal == null) return "";
+    int iYear  = cal.get(Calendar.YEAR);
+    int iMonth = cal.get(Calendar.MONTH) + 1;
+    int iDay   = cal.get(Calendar.DATE);
+    int iHour  = cal.get(Calendar.HOUR_OF_DAY);
+    int iMin   = cal.get(Calendar.MINUTE);
+    int iSec   = cal.get(Calendar.SECOND);
+    String sYear  = String.valueOf(iYear);
+    String sMonth = iMonth < 10 ? "0" + iMonth : String.valueOf(iMonth);
+    String sDay   = iDay   < 10 ? "0" + iDay   : String.valueOf(iDay);
+    String sHour  = iHour  < 10 ? "0" + iHour  : String.valueOf(iHour);
+    String sMin   = iMin   < 10 ? "0" + iMin   : String.valueOf(iMin);
+    String sSec   = iSec   < 10 ? "0" + iSec   : String.valueOf(iSec);
+    if(iYear < 10) {
+      sYear = "000" + sYear;
+    }
+    else if(iYear < 100) {
+      sYear = "00" + sYear;
+    }
+    else if(iYear < 1000) {
+      sYear = "0" + sYear;
+    }
+    return sDay + "/" + sMonth + "/" + sYear + " " + sHour + ":" + sMin + ":" + sSec;
+  }
+  
+  private static
   Calendar toCalendar(String text) 
   {
     if(text == null || text.length() < 8) {
@@ -1184,7 +1277,7 @@ public class ReportService {
   }
   
   private static
-  void concat(List<Object> record0, List<Object> record1, int index)
+  void groupFunction(List<Object> record0, List<Object> record1, int index)
   {
     if(record0 == null || record0.size() <= index) {
       return;
@@ -1206,16 +1299,30 @@ public class ReportService {
         record0.set(index, o1);
       }
       else {
-        if(s0.equals(s1)) return;
-        if(s0.startsWith(s1 + ",")) return;
-        if(s0.endsWith("," + s1)) return;
-        if(s0.indexOf("," + s1 + ",") > 0) return;
-        record0.set(index, o0 + "," + o1);
+        if(o0 instanceof Integer && o1 instanceof Integer) {
+          int sum = ((Integer) o0).intValue() + ((Integer) o1).intValue();
+          record0.set(index, sum);
+        }
+        else if(o0 instanceof Number && o1 instanceof Number) {
+          double sum = ((Number) o0).doubleValue() + ((Number) o1).doubleValue();
+          record0.set(index, sum);
+        }
+        else {
+          if(s0.equals(s1)) return;
+          if(s0.startsWith(s1 + ",")) return;
+          if(s0.endsWith("," + s1)) return;
+          if(s0.indexOf("," + s1 + ",") > 0) return;
+          record0.set(index, o0 + "," + o1);
+        }
       }
     }
   }
   
-  private static void log(String message) {
+  public static void log(String message) {
+    log("ReportService", message);
+  }
+  
+  public static void log(String module, String message) {
     Calendar cal = Calendar.getInstance();
     int iYear  = cal.get(Calendar.YEAR);
     int iMonth = cal.get(Calendar.MONTH) + 1;
@@ -1229,6 +1336,6 @@ public class ReportService {
     String sHour  = iHour  < 10 ? "0" + iHour  : String.valueOf(iHour);
     String sMin   = iMin   < 10 ? "0" + iMin   : String.valueOf(iMin);
     String sSec   = iSec   < 10 ? "0" + iSec   : String.valueOf(iSec);
-    System.out.println(sYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMin + ":" + sSec + " [ReportService] " + message);
+    System.out.println(sYear + "-" + sMonth + "-" + sDay + " " + sHour + ":" + sMin + ":" + sSec + " [" + module + "] " + message);
   }
 }

@@ -854,6 +854,7 @@ var APP;
                 "table": 'APP_LOG',
                 "title": 'Report Operazioni',
                 "fields": ['UTENTE', 'LOG_OPERAZIONE', 'LOG_FUNZIONE'],
+                "cols": ['Utente', 'Operazione', 'Funzione'],
                 "filter": filter,
                 "orderBy": 'LOG_DATA DESC',
                 "maxRows": 50,
