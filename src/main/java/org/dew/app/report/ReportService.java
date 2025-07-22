@@ -321,7 +321,6 @@ public class ReportService {
         }
         listHeader.add(columnName);
         columnTypes[i] = rsmd.getColumnType(i + 1);
-        log(columnName + "," + columnTypes[i]);
       }
       if(includeHeader) {
         listResult.add(listHeader);
@@ -476,7 +475,7 @@ public class ReportService {
     while(itKeys.hasNext()) {
       String key  = itKeys.next();
       int indexOf = key.indexOf("__in");
-      if(indexOf == key.length() - 5) {
+      if(indexOf > 0 && indexOf == key.length() - 5) {
         String field = key.substring(0, key.length() - 5);
         if(!listInFields.contains(field)) {
           listInFields.add(field);
@@ -484,7 +483,7 @@ public class ReportService {
         continue;
       }
       indexOf = key.indexOf("__nin");
-      if(indexOf == key.length() - 6) {
+      if(indexOf > 0 && indexOf == key.length() - 6) {
         String field = key.substring(0, key.length() - 6);
         if(!listNInFields.contains(field)) {
           listNInFields.add(field);
