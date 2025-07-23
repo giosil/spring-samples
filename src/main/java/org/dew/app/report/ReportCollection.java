@@ -18,7 +18,7 @@ public class ReportCollection {
       result.put("table",   "APP_LOG");
       result.put("title",   "Report Operazioni");
       result.put("fields",  "UTENTE,LOG_DATA,LOG_OPERAZIONE,LOG_FUNZIONE");
-	  result.put("cols",    "Utente,Data e ora,Operazione,Funzione");
+      result.put("cols",    "Utente,Data e ora,Operazione,Funzione");
       result.put("clause",  "LOG_ECCEZIONE IS NULL");
       result.put("orderBy", "LOG_DATA DESC");
       result.put("maxRows", 50);

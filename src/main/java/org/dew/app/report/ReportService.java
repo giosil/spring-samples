@@ -1,6 +1,7 @@
 package org.dew.app.report;
 
 import java.lang.reflect.Array;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -46,6 +47,7 @@ public class ReportService {
     }
   }
   
+  @SuppressWarnings("unchecked")
   public static
   List<List<Object>> select(Connection conn, Map<String, Object> parameters)
     throws Exception
@@ -83,6 +85,8 @@ public class ReportService {
         listGroupBy = listFilterGroupBy;
       }
     }
+    boolean groupCols = toBoolean(parameters.get("groupCols"), true);
+    int     groupMax  = toInt(parameters.get("groupMax"), 0);
     
     String clause = toString(parameters.get("clause"));
     if(clause != null && clause.length() > 0) {
@@ -97,27 +101,79 @@ public class ReportService {
     
     List<List<Object>> result = select(conn, table, mapFilter, listFields, orderBy, maxRows, includeHeader);
     
-    List<Integer> listIndex = indexOf(listFields, listGroupBy);
-    if(listIndex != null && listIndex.size() > 0) {
+    // Grouping
+    Map<Integer, Integer> mapColMaxValues = new HashMap<Integer, Integer>();
+    List<Integer> listGroupIndexes = indexOf(listFields, listGroupBy);
+    if(listGroupIndexes != null && listGroupIndexes.size() > 0) {
       Map<String, List<Object>> mapGroupBy = new HashMap<String, List<Object>>();
       int row = 0;
       Iterator<List<Object>> iterator = result.iterator();
       while(iterator.hasNext()) {
-        List<Object> record = iterator.next();
+        List<Object> recordR = iterator.next();
         row++;
         if(includeHeader && row == 1) continue;
         
-        String group = getGroupValues(record, listIndex);
+        String group = getGroupValues(recordR, listGroupIndexes);
         if(group == null || group.length() == 0) continue;
         
         List<Object> recordG = mapGroupBy.get(group);
         if(recordG == null) {
-          mapGroupBy.put(group, record);
+          mapGroupBy.put(group, recordR);
         }
         else {
-          for(int j = 0; j < record.size(); j++) {
-            if(listIndex.indexOf(j) >= 0) continue;
-            groupFunction(recordG, record, j);
+          for(int j = 0; j < recordR.size(); j++) {
+            if(listGroupIndexes.indexOf(j) >= 0) continue;
+            Object valG = recordG.get(j);
+            Object valR = recordR.get(j);
+            if(valR == null) continue;
+            if(valG == null) {
+              recordG.set(j, valR);
+              continue;
+            }
+            if(valR.equals(valG)) continue;
+            if(groupCols) {
+              if(valG instanceof List) {
+                List<Object> listValG = (List<Object>) valG;
+                if(!listValG.contains(valR)) {
+                  listValG.add(valR);
+                  int sizeValG = listValG.size();
+                  Integer maxValues = mapColMaxValues.get(j);
+                  if(maxValues == null) {
+                    mapColMaxValues.put(j, sizeValG);
+                  }
+                  else {
+                    if(maxValues.intValue() < sizeValG) {
+                      mapColMaxValues.put(j, sizeValG);
+                    }
+                  }
+                }
+              }
+              else {
+                List<Object> values = new ArrayList<Object>();
+                values.add(valG);
+                values.add(valR);
+                recordG.set(j, values);
+                
+                Integer maxValues = mapColMaxValues.get(j);
+                if(maxValues == null) {
+                  mapColMaxValues.put(j, 2);
+                }
+                else {
+                  if(maxValues.intValue() < 2) {
+                    mapColMaxValues.put(j, 2);
+                  }
+                }
+              }
+            }
+            else {
+              String sG = valG != null ? valG.toString() : "";
+              String sR = valR != null ? valR.toString() : "";
+              if(sG.equals(sR)) continue;
+              if(sG.startsWith(sR + ",")) continue;
+              if(sG.endsWith("," + sR)) continue;
+              if(sG.indexOf("," + sR + ",") > 0) continue;
+              recordG.set(j, sG + "," + sR);
+            }
           }
           iterator.remove();
         }
@@ -136,6 +192,75 @@ public class ReportService {
           }
         }
       }
+    }
+    
+    if(mapColMaxValues.size() > 0) {
+      int additionalCols = 0;
+      Iterator<Integer> iterator = mapColMaxValues.values().iterator();
+      while(iterator.hasNext()) {
+        int maxValues = iterator.next().intValue();
+        if(groupMax > 0) {
+          additionalCols += groupMax - 1;
+        }
+        else {
+          additionalCols += maxValues - 1;
+        }
+      }
+      List<List<Object>> result2 = new ArrayList<List<Object>>(result.size());
+      int start = 0;
+      if(includeHeader && result.size() > 0) {
+        start = 1;
+        List<Object> listHeader1 = result.get(0);
+        List<Object> listHeader2 = new ArrayList<Object>(listHeader1.size() + additionalCols);
+        for(int j = 0; j < listHeader1.size(); j++) {
+          Object header = listHeader1.get(j);
+          Integer oMaxV = mapColMaxValues.get(j);
+          if(oMaxV == null) {
+            listHeader2.add(header);
+            continue;
+          }
+          int maxValues = oMaxV.intValue();
+          if(groupMax > 0) {
+            maxValues = groupMax;
+          }
+          for(int c = 0; c < maxValues; c++) {
+            int ord = c + 1;
+            listHeader2.add(header + " " + ord);
+          }
+        }
+        result2.add(listHeader2);
+      }
+      for(int i = start; i < result.size(); i++) {
+        List<Object> listRecord1 = result.get(i);
+        List<Object> listRecord2 = new ArrayList<Object>(listRecord1.size() + additionalCols);
+        for(int j = 0; j < listRecord1.size(); j++) {
+          Object value  = listRecord1.get(j);
+          Integer oMaxV = mapColMaxValues.get(j);
+          if(oMaxV == null) {
+            listRecord2.add(value);
+            continue;
+          }
+          int maxValues = oMaxV.intValue();
+          if(groupMax > 0) {
+            maxValues = groupMax;
+          }
+          if(value instanceof List) {
+            List<Object> listValues = (List<Object>) value;
+            for(int c = 0; c < maxValues; c++) {
+              Object valueC = listValues.size() > c ? listValues.get(c) : null;
+              listRecord2.add(valueC);
+            }
+          }
+          else {
+            listRecord2.add(value);
+            for(int c = 1; c < maxValues; c++) {
+              listRecord2.add(null);
+            }
+          }
+        }
+        result2.add(listRecord2);
+      }
+      return result2;
     }
     
     return result;
@@ -1275,48 +1400,6 @@ public class ReportService {
       return result.substring(1);
     }
     return result;
-  }
-  
-  private static
-  void groupFunction(List<Object> record0, List<Object> record1, int index)
-  {
-    if(record0 == null || record0.size() <= index) {
-      return;
-    }
-    if(record1 == null || record1.size() <= index) {
-      return;
-    }
-    Object o0 = record0.get(index);
-    Object o1 = record1.get(index);
-    if(o1 == null) return;
-    String s1 = o1.toString();
-    if(s1.length() == 0) return;
-    if(o0 == null) {
-      record0.set(index, o1);
-    }
-    else {
-      String s0 = o0.toString();
-      if(s0.length() == 0) {
-        record0.set(index, o1);
-      }
-      else {
-        if(o0 instanceof Integer && o1 instanceof Integer) {
-          int sum = ((Integer) o0).intValue() + ((Integer) o1).intValue();
-          record0.set(index, sum);
-        }
-        else if(o0 instanceof Number && o1 instanceof Number) {
-          double sum = ((Number) o0).doubleValue() + ((Number) o1).doubleValue();
-          record0.set(index, sum);
-        }
-        else {
-          if(s0.equals(s1)) return;
-          if(s0.startsWith(s1 + ",")) return;
-          if(s0.endsWith("," + s1)) return;
-          if(s0.indexOf("," + s1 + ",") > 0) return;
-          record0.set(index, o0 + "," + o1);
-        }
-      }
-    }
   }
   
   public static void log(String message) {
