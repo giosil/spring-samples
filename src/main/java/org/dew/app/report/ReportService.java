@@ -206,7 +206,7 @@ public class ReportService {
         int cols = toInt(value, 0);
         if(cols > 0 && cols <= 100) {
           // Si riporta un valore negativo per distinguerli
-          // dai valori calcolati. Essi non saranno sovrascritti da groupMax.
+          // dai valori calcolati. Essi non saranno confrontati groupMax.
           cols = cols * -1;
           mapColMaxValues.put(i, cols);
         }
@@ -221,7 +221,7 @@ public class ReportService {
         if(maxValues < 0) {
           additionalCols += maxValues*-1 - 1;
         }
-        else if(groupMax > 0) {
+        else if(groupMax > 0 && maxValues > groupMax) {
           additionalCols += groupMax - 1;
         }
         else {
@@ -245,7 +245,7 @@ public class ReportService {
           if(maxValues < 0) {
             maxValues = maxValues*-1;
           }
-          else if(groupMax > 0) {
+          else if(groupMax > 0 && maxValues > groupMax) {
             maxValues = groupMax;
           }
           if(maxValues < 2) {
@@ -273,7 +273,7 @@ public class ReportService {
           if(maxValues < 0) {
             maxValues = maxValues*-1;
           }
-          else if(groupMax > 0) {
+          else if(groupMax > 0 && maxValues > groupMax) {
             maxValues = groupMax;
           }
           if(maxValues < 2) {
