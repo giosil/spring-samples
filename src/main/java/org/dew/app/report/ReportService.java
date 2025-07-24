@@ -73,6 +73,7 @@ public class ReportService {
     }
     
     Map<String, Object> mapFilter = toMap(parameters.get("filter"));
+    Map<String, Object> multiCols = toMap(parameters.get("multiCols"));
     List<String> listFields       = toListOfString(parameters.get("fields"));
     List<String> listCols         = toListOfString(parameters.get("cols"));
     List<String> listGroupBy      = toListOfString(parameters.get("groupBy"));
@@ -194,12 +195,33 @@ public class ReportService {
       }
     }
     
+    if(multiCols != null) {
+      Iterator<Map.Entry<String, Object>> iterator = multiCols.entrySet().iterator();
+      while(iterator.hasNext()) {
+        Map.Entry<String, Object> entry = iterator.next();
+        String field = entry.getKey();
+        int i = listFields.indexOf(field);
+        if(i < 0) continue;
+        Object value = entry.getValue();
+        int cols = toInt(value, 0);
+        if(cols > 0 && cols <= 100) {
+          // Si riporta un valore negativo per distinguerli
+          // dai valori calcolati. Essi non saranno sovrascritti da groupMax.
+          cols = cols * -1;
+          mapColMaxValues.put(i, cols);
+        }
+      }
+    }
+    
     if(mapColMaxValues.size() > 0) {
       int additionalCols = 0;
       Iterator<Integer> iterator = mapColMaxValues.values().iterator();
       while(iterator.hasNext()) {
         int maxValues = iterator.next().intValue();
-        if(groupMax > 0) {
+        if(maxValues < 0) {
+          additionalCols += maxValues*-1 - 1;
+        }
+        else if(groupMax > 0) {
           additionalCols += groupMax - 1;
         }
         else {
@@ -220,8 +242,15 @@ public class ReportService {
             continue;
           }
           int maxValues = oMaxV.intValue();
-          if(groupMax > 0) {
+          if(maxValues < 0) {
+            maxValues = maxValues*-1;
+          }
+          else if(groupMax > 0) {
             maxValues = groupMax;
+          }
+          if(maxValues < 2) {
+            listHeader2.add(header);
+            continue;
           }
           for(int c = 0; c < maxValues; c++) {
             int ord = c + 1;
@@ -241,8 +270,15 @@ public class ReportService {
             continue;
           }
           int maxValues = oMaxV.intValue();
-          if(groupMax > 0) {
+          if(maxValues < 0) {
+            maxValues = maxValues*-1;
+          }
+          else if(groupMax > 0) {
             maxValues = groupMax;
+          }
+          if(maxValues < 2) {
+            listRecord2.add(value);
+            continue;
           }
           if(value instanceof List) {
             List<Object> listValues = (List<Object>) value;
