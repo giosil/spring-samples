@@ -73,6 +73,23 @@ declare namespace APP {
     }
 }
 declare namespace APP {
+    class GUIChat extends WUX.WComponent {
+        main: WUX.WContainer;
+        brcr: Breadcrumb;
+        form: WUX.WForm;
+        btnSend: WUX.WButton;
+        btnReset: WUX.WButton;
+        idOut: string;
+        defModel: string;
+        defMaxTokens: number;
+        defTemperature: number;
+        constructor();
+        render(): WUX.WContainer;
+        doSend(): void;
+        doReset(): void;
+    }
+}
+declare namespace APP {
     class GUIComuni extends WUX.WComponent {
         main: WUX.WContainer;
         brcr: Breadcrumb;
