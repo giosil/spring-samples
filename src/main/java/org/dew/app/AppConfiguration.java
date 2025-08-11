@@ -108,6 +108,22 @@ public class AppConfiguration {
     return false;
   }
   
+  protected boolean isTestContext() {
+    if(environment == null) {
+      return false;
+    }
+    String value = environment.getProperty("org.springframework.boot.test.context.SpringBootTestContextBootstrapper");
+    if(value == null) return false;
+    return value.equals("true");
+  }
+  
+  public static boolean isOSWindows() {
+    String value = System.getenv("OS");
+    if(value == null || value.length() == 0) return false;
+    char c0 = value.charAt(0);
+    return c0 == 'W' || c0 == 'w';
+  }
+  
   protected String getDataSourceDriver() {
     return env("APP_DS_DRIVER", "org.postgresql.Driver");
   }
