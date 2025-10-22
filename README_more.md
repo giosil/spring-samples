@@ -691,4 +691,8 @@ UserDTO userDTO = webClient
 ObjectMapper objectMapper = new ObjectMapper();
 String json = objectMapper.writeValueAsString(userDTO);
 System.out.println(json);
+
+// JSON to Map<String, Object>
+Map<String, Object> map = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+System.out.println(map);
 ```
