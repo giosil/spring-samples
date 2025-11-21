@@ -64,6 +64,39 @@ docker compose -p "app-cluster" up --detach
 
 See [more samples](README_more.md).
 
+## To enable diagnostic services
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, logfile, loggers, metrics, env, beans, threaddump, httptrace, mappings
+  endpoint:
+    health:
+      show-details: always
+```
+
+Endpoints:
+
+- /actuator/health
+- /actuator/info
+- /actuator/logfile
+- /actuator/loggers
+- /actuator/env
+- /actuator/beans
+- /actuator/mappings
+- /actuator/threaddump
+- /actuator/metrics
+- /actuator/httptrace
+
 ## Contributors
 
 * [Giorgio Silvestris](https://github.com/giosil)
