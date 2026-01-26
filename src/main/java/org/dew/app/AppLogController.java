@@ -20,16 +20,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class AppLogController {
   
   @GetMapping("/list")
-  public ResponseEntity<List<String>> list(){
+  public ResponseEntity<List<String>> list(
+      @RequestParam(name = "folder", required = false) String folderPath
+    ) throws Exception {
+    if(folderPath == null || folderPath.length() == 0) {
+      folderPath = ".";
+    }
+    folderPath = folderPath.replace("$", System.getProperty("user.home"));
     List<String> result = new ArrayList<>();
-    File folder = new File(".");
+    File folder = new File(folderPath);
     File[] afFiles = folder.listFiles();
     for (int i = 0; i < afFiles.length; i++) {
       File file = afFiles[i];
       if (file.isFile()) {
         String fileName = file.getName();
-        if(fileName.endsWith(".log")) {
-          result.add(file.getName());
+        if(fileName.endsWith(".log") || fileName.endsWith(".txt") || fileName.endsWith(".xml")) {
+          result.add(file.getCanonicalPath());
         }
       }
     }
@@ -44,15 +50,22 @@ public class AppLogController {
       @RequestParam(name = "search", required = false) String search
     ) throws Exception {
     if(search == null) search = "";
-    File file = new File("./" + name);
+    search = search.toLowerCase();
     List<String> result = new ArrayList<>();
+    if(name == null || name.length() < 2) {
+      return new ResponseEntity<>(result, HttpStatus.OK);
+    }
+    if(!name.startsWith("/") && name.indexOf(':') < 0) {
+      name = "./" + name;
+    }
+    File file = new File(name);
     BufferedReader br = null;
     try {
       br = new BufferedReader(new FileReader(file));
       String sLine = null;
       while((sLine = br.readLine()) != null) {
         if(!search.isEmpty()) {
-          if(!sLine.contains(search)) {
+          if(!sLine.toLowerCase().contains(search)) {
             continue;
           }
         }
