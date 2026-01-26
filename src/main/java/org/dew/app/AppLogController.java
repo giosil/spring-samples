@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AppLogController {
   
   @GetMapping("/list")
-  public ResponseEntity<List<String>> findTipiCompetenza(){
+  public ResponseEntity<List<String>> list(){
     List<String> result = new ArrayList<>();
     File folder = new File(".");
     File[] afFiles = folder.listFiles();
@@ -37,7 +37,7 @@ public class AppLogController {
   }
 
   @GetMapping("/read")
-  public ResponseEntity<List<String>> findByFilters(
+  public ResponseEntity<List<String>> read(
       @RequestParam(name = "name", required = true) String name,
       @RequestParam(name = "first", required = false, defaultValue = "0") int first,
       @RequestParam(name = "last", required = false, defaultValue = "0") int last,
