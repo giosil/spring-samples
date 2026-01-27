@@ -132,8 +132,19 @@ declare namespace APP {
     class GUILogs extends WUX.WComponent {
         main: WUX.WContainer;
         brcr: Breadcrumb;
-        constructor();
-        render(): WUX.WContainer;
+        cntL: WUX.WContainer;
+        formL: WUX.WForm;
+        btnLFind: WUX.WButton;
+        btnLReset: WUX.WButton;
+        tabL: WUX.WTable;
+        cntR: WUX.WContainer;
+        formR: WUX.WForm;
+        btnRFind: WUX.WButton;
+        btnRReset: WUX.WButton;
+        tabR: WUX.WTable;
+        constructor(id?: string);
+        protected render(): WUX.WContainer;
+        protected componentDidMount(): void;
     }
 }
 declare namespace APP {

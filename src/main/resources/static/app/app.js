@@ -924,21 +924,153 @@ var APP;
 })(APP || (APP = {}));
 var APP;
 (function (APP) {
+    var WUtil = WUX.WUtil;
     var GUILogs = /** @class */ (function (_super) {
         __extends(GUILogs, _super);
-        function GUILogs() {
-            return _super.call(this) || this;
+        function GUILogs(id) {
+            return _super.call(this, id ? id : '*', 'GUILogs') || this;
         }
         GUILogs.prototype.render = function () {
+            var _this = this;
             this.brcr = new APP.Breadcrumb();
             this.brcr.add('Log');
+            this.formL = new WUX.WForm(this.subId('forml'));
+            this.formL.addRow();
+            this.formL.addTextField('folder', 'Cartella');
+            this.formL.onEnter(function () {
+                _this.btnLFind.trigger('click');
+            });
+            this.btnLFind = new WUX.WButton(this.subId('btnlf'), 'Lista', 'fa-search', 'btn-icon btn btn-primary', 'margin-right: 0.5rem;');
+            this.btnLFind.on('click', function (e) {
+                var filter = _this.formL.getState();
+                APP.http.get('log/list', filter, function (data) {
+                    if (!data)
+                        data = [];
+                    var l = data.length;
+                    if (!l) {
+                        APP.showWarning('Nessun elemento trovato.');
+                    }
+                    // string[] -> string[][]
+                    var s = [];
+                    for (var _i = 0, data_2 = data; _i < data_2.length; _i++) {
+                        var r = data_2[_i];
+                        s.push([r]);
+                    }
+                    _this.tabL.setState(s);
+                });
+            });
+            this.btnLReset = new WUX.WButton(this.subId('btnlr'), 'Annulla', 'fa-undo', 'btn-icon btn btn-secondary');
+            this.btnLReset.on('click', function (e) {
+                _this.formL.clear();
+                _this.tabL.setState([]);
+            });
+            var lc = [
+                ['File', '0', 's']
+            ];
+            this.tabL = new WUX.WTable(this.subId('tabl'), WUtil.col(lc, 0), WUtil.col(lc, 1));
+            this.tabL.selectionMode = 'single';
+            this.tabL.types = WUtil.col(lc, 2);
+            this.tabL.css({ h: 480 });
+            this.tabL.onDoubleClick(function () {
+                var srd = _this.tabL.getSelectedRowsData();
+                if (!srd || !srd.length)
+                    return;
+                _this.btnRFind.trigger('click');
+            });
+            this.formR = new WUX.WForm(this.subId('formr'));
+            this.formR.addRow();
+            this.formR.addNumberField('first', 'Prime righe');
+            this.formR.addNumberField('last', 'Ultime righe');
+            this.formR.addTextField('search', 'Testo contenuto');
+            this.formR.onEnter(function () {
+                _this.btnRFind.trigger('click');
+            });
+            this.btnRFind = new WUX.WButton(this.subId('btnrf'), 'Vedi file', 'fa-file', 'btn-icon btn btn-primary', 'margin-right: 0.5rem;');
+            this.btnRFind.on('click', function (e) {
+                var srd = _this.tabL.getSelectedRowsData();
+                if (!srd || !srd.length) {
+                    APP.showWarning('Selezionare prima il file da visualizzare');
+                }
+                var filter = _this.formR.getState();
+                if (!filter)
+                    filter = {};
+                filter["name"] = srd[0][0];
+                APP.http.get('log/read', filter, function (data) {
+                    if (!data)
+                        data = [];
+                    var l = data.length;
+                    if (!l) {
+                        APP.showWarning('Contenuto non presente.');
+                    }
+                    // string[] -> string[][]
+                    var s = [];
+                    for (var _i = 0, data_3 = data; _i < data_3.length; _i++) {
+                        var r = data_3[_i];
+                        s.push([r]);
+                    }
+                    _this.tabR.setState(s);
+                });
+            });
+            this.btnRReset = new WUX.WButton(this.subId('btnrr'), 'Annulla', 'fa-undo', 'btn-icon btn btn-secondary');
+            this.btnRReset.on('click', function (e) {
+                _this.formR.clear();
+                _this.tabR.setState([]);
+                _this.formR.focus();
+            });
+            var rc = [
+                ['Testo', '0', 's'],
+            ];
+            this.tabR = new WUX.WTable(this.subId('tabr'), WUtil.col(rc, 0), WUtil.col(rc, 1));
+            this.tabR.types = WUtil.col(rc, 2);
+            this.tabR.css({ h: 480 });
+            this.tabR.onRowPrepared(function (e) {
+                if (!e.data)
+                    return;
+                var r = e.data[0];
+                if (r && r.indexOf('WARN') >= 0) {
+                    WUX.setCss(e.rowElement, WUX.CSS.WARNING);
+                }
+                else if (r && r.indexOf('ERROR') >= 0) {
+                    WUX.setCss(e.rowElement, WUX.CSS.DANGER);
+                }
+            });
+            this.cntL = new WUX.WContainer(this.subId('cntl'));
+            this.cntL
+                .addRow()
+                .addCol('col-md-12')
+                .add(this.formL)
+                .addRow()
+                .addCol('col-md-12')
+                .addGroup({ "classStyle": "form-row" }, this.btnLFind, this.btnLReset)
+                .addRow()
+                .addCol('12')
+                .add(this.tabL);
+            this.cntR = new WUX.WContainer(this.subId('cntr'));
+            this.cntR
+                .addRow()
+                .addCol('col-md-12')
+                .add(this.formR)
+                .addRow()
+                .addCol('col-md-12')
+                .addGroup({ "classStyle": "form-row" }, this.btnRFind, this.btnRReset)
+                .addRow()
+                .addCol('12')
+                .add(this.tabR);
             this.main = new WUX.WContainer();
             this.main
                 .before(this.brcr)
                 .addRow()
-                .addCol('col-md-12')
-                .add('<p>Consultazione log operazioni</p>');
+                .addCol('4')
+                .add(this.cntL)
+                .addCol('8')
+                .add(this.cntR);
             return this.main;
+        };
+        GUILogs.prototype.componentDidMount = function () {
+            var _this = this;
+            setTimeout(function () {
+                _this.btnLFind.trigger('click');
+            }, 0);
         };
         return GUILogs;
     }(WUX.WComponent));
